@@ -2,8 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module App
-    ( AppState(..)
-    , startApp
+    ( startApp
     , initConnectionPool
     , runMigrations
     ) where
@@ -20,24 +19,13 @@ import Network.Wai.Handler.Warp (Port, run)
 import Network.Wai.Middleware.Cors (simpleCors)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Middleware (securityHeaders, rateLimitMiddleware)
-import Servant (Application)
 
-import Api (app)
-
--- Application state containing all resources needed at runtime
-import AbuseProtection (BlacklistConfig(..), UrlContentFilter, newUrlContentFilter, isUrlSafe)
-import RateLimiter (RateLimiter, RateLimitConfig(..), newRateLimiter, checkRateLimit)
+import Api (app, AppState(..))
+import AbuseProtection (BlacklistConfig(..), UrlContentFilter, newUrlContentFilter)
+import RateLimiter (RateLimiter, RateLimitConfig(..), newRateLimiter)
 import Network.HTTP.Client (Manager, newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import qualified Data.Set as Set
-
-data AppState = AppState
-    { appStatePool :: Pool SqlBackend
-    , appStateConfig :: AppConfig
-    , appStateRateLimiter :: RateLimiter
-    , appStateContentFilter :: UrlContentFilter
-    , appStateHttpManager :: Manager
-    }
 
 -- Initialize a PostgreSQL connection pool
 initConnectionPool :: DatabaseConfig -> IO (Pool SqlBackend)
@@ -67,8 +55,8 @@ startApp config@AppConfig{..} pool = do
     
     -- Create rate limiter with default config
     let rateLimitConfig = RateLimitConfig
-            { maxRequests = 100      -- 100 requests 
-            , perTimeWindow = 60     -- per minute
+            { maxRequests = rateLimitRequests
+            , perTimeWindow = rateLimitWindow
             , cleanupInterval = 300  -- clean up every 5 minutes
             }
     rateLimiter <- newRateLimiter rateLimitConfig
@@ -81,7 +69,7 @@ startApp config@AppConfig{..} pool = do
                 [ "phish", "malware", "exploit", "hack" ]
             , blacklistFile = Nothing
             , maxRedirects = 5
-            , maxUrlLength = 2048
+            , maxUrlLength = maxUrlLength
             }
     contentFilter <- newUrlContentFilter blacklistConfig
     

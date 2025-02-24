@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module AbuseProtection 
     ( UrlContentFilter
@@ -19,6 +20,7 @@ import Network.HTTP.Client
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Types.Status (statusCode)
 import System.IO (IOMode(..), withFile)
+import Control.Exception (catch)
 
 -- Configuration for blacklist
 data BlacklistConfig = BlacklistConfig
