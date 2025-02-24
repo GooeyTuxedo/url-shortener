@@ -8,9 +8,9 @@ extra-deps:
 - servant-server-0.19.2
 
 # For development, we disable tests and benchmarks to speed up builds
-flags:
-  url-shortener:
-    dev: true
+# flags:
+#   url-shortener:
+#     dev: true
 
 # Ensure that GHC includes debugging info
 ghc-options:

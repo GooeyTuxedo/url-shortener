@@ -139,20 +139,21 @@ Redirects to the original URL associated with the given short code.
 ## Project Structure
 
 ### Backend
-- `app/`: Application entry point
-- `src/`: Application source code
-  - `Api.hs`: API endpoints using Servant
-  - `App.hs`: Application environment setup
-  - `Config.hs`: Configuration loading
-  - `Models.hs`: Database models with Persistent
-  - `Shortener.hs`: URL shortening logic
-  - `Utils.hs`: Helper functions
-  - `RateLimiter.hs`: Rate limiting implementation
-  - `AbuseProtection.hs`: URL content filtering
-  - `Middleware.hs`: Security middleware
-  - `QRGenerator.hs`: QR code generation
-- `test/`: Test suite
-- `Dockerfile`: Docker configuration
+- `backend/`: Haskell application
+  - `app/`: Application entry point
+  - `src/`: Application source code
+    - `Api.hs`: API endpoints using Servant
+    - `App.hs`: Application environment setup
+    - `Config.hs`: Configuration loading
+    - `Models.hs`: Database models with Persistent
+    - `Shortener.hs`: URL shortening logic
+    - `Utils.hs`: Helper functions
+    - `RateLimiter.hs`: Rate limiting implementation
+    - `AbuseProtection.hs`: URL content filtering
+    - `Middleware.hs`: Security middleware
+    - `QRGenerator.hs`: QR code generation
+  - `test/`: Test suite
+  - `Dockerfile`: Docker configuration
 - `docker-compose.yml`: Development environment setup
 
 ### Frontend

@@ -1,4 +1,4 @@
-FROM haskell:9.8 as builder
+FROM haskell:9.2.8 AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY . .
 RUN stack build
 
 # Create a smaller runtime image
-FROM debian:bullseye-slim as runtime
+FROM debian:bullseye-slim AS runtime
 
 # Install required system libraries
 RUN apt-get update && \

@@ -15,10 +15,10 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./backend
       target: builder
     volumes:
-      - .:/app
+      - ./backend:/app
       - stack-data:/root/.stack
     ports:
       - "8080:8080"
