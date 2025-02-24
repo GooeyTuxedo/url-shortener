@@ -52,6 +52,7 @@ data ShortUrlResponse = ShortUrlResponse
     , createdAt :: UTCTime
     , expiresAt :: Maybe UTCTime
     , clickCount :: Int
+    , qrCodeUrl :: Text
     } deriving (Show, Eq, Generic)
 
 instance FromJSON ShortUrlResponse
@@ -67,10 +68,13 @@ instance ToJSON ErrorResponse
 -- Convert database model to API response
 toShortUrlResponse :: Text -> ShortUrl -> ShortUrlResponse
 toShortUrlResponse baseUrl shortUrl = ShortUrlResponse
-    { shortUrl = baseUrl <> "/" <> shortUrlShortCode shortUrl
+    { shortUrl = baseUrl <> "/" <> shortCode
     , originalUrl = shortUrlOriginalUrl shortUrl
-    , shortCode = shortUrlShortCode shortUrl
+    , shortCode = shortCode
     , createdAt = shortUrlCreatedAt shortUrl
     , expiresAt = shortUrlExpiresAt shortUrl
     , clickCount = shortUrlClickCount shortUrl
+    , qrCodeUrl = baseUrl <> "/api/qrcode/" <> shortCode
     }
+  where
+    shortCode = shortUrlShortCode shortUrl

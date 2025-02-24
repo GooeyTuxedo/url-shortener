@@ -17,30 +17,40 @@ import Data.Pool (Pool)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time (UTCTime, addUTCTime, getCurrentTime, nominalDay)
-import Database.Persist ((==.), Entity(..), get, insert, selectFirst, update, updateGet)
+import Database.Persist ((==.), Entity(..), get, insert, selectFirst, update, updateGet, (+=.))
 import Database.Persist.Sql (SqlBackend, runSqlPool)
 import Models
 import Network.HTTP.Types (status301, status404)
 import Network.Wai (Application, responseLBS)
 import Servant
 import Shortener (generateShortCode, isValidShortCode)
+import QRGenerator (generateQRCode, QROptions(..), defaultQROptions)
+import Data.ByteString.Lazy (ByteString)
+import AbuseProtection (isUrlSafe)
+import RateLimiter (checkRateLimit)
+import Control.Monad (unless)
 
 -- Application state
 data AppState = AppState
     { appStatePool :: Pool SqlBackend
     , appStateConfig :: AppConfig
+    , appStateRateLimiter :: RateLimiter
+    , appStateContentFilter :: UrlContentFilter
+    , appStateHttpManager :: Manager
     }
 
 -- API type definition
 type API = 
        "api" :> "shorten" :> ReqBody '[JSON] CreateShortUrlRequest :> Post '[JSON] ShortUrlResponse
   :<|> "api" :> "urls" :> Capture "shortCode" Text :> Get '[JSON] ShortUrlResponse
+  :<|> "api" :> "qrcode" :> Capture "shortCode" Text :> QueryParam "size" Int :> Get '[OctetStream] ByteString
   :<|> Capture "shortCode" Text :> Get '[JSON] NoContent
 
 -- Server implementation
 server :: AppState -> Server API
 server state = shortenUrlHandler state
           :<|> getUrlInfoHandler state
+          :<|> generateQRCodeHandler state
           :<|> redirectHandler state
 
 -- Handler to create a new short URL
@@ -106,6 +116,45 @@ getUrlInfoHandler AppState{..} shortCode = do
             return $ toShortUrlResponse (baseUrl appStateConfig) shortUrl
         Nothing -> 
             throwError err404 { errBody = "Short URL not found" }
+
+-- Handler to generate QR code for a short URL
+generateQRCodeHandler :: AppState -> Text -> Maybe Int -> Handler ByteString
+generateQRCodeHandler AppState{..} shortCode mSize = do
+    -- Extract client IP from request (for rate limiting)
+    clientIP <- liftIO $ getClientIP
+    
+    -- Apply rate limit for QR code generation
+    allowed <- liftIO $ checkRateLimit appStateRateLimiter clientIP
+    unless allowed $
+        throwError err429 { errBody = "Rate limit exceeded. Please try again later." }
+    
+    -- Find the short URL in the database
+    result <- liftIO $ runSqlPool 
+        (selectFirst [ShortUrlShortCode ==. shortCode] [])
+        appStatePool
+    
+    case result of
+        Just (Entity _ shortUrl) -> do
+            -- Construct the full short URL
+            let fullShortUrl = baseUrl appStateConfig <> "/" <> shortCode
+                
+                -- Create QR options with custom size if provided
+                qrOptions = case mSize of
+                    Just size | size >= 100 && size <= 1000 -> 
+                        defaultQROptions { qrSize = size }
+                    _ -> defaultQROptions
+            
+            -- Generate the QR code
+            case generateQRCode fullShortUrl qrOptions of
+                Right qrCodeData -> return qrCodeData
+                Left err -> throwError err500 { errBody = "Failed to generate QR code" }
+                
+        Nothing -> 
+            throwError err404 { errBody = "Short URL not found" }
+  where
+    -- Helper function to get client IP from request
+    getClientIP :: IO Text
+    getClientIP = return "0.0.0.0"  -- In production, extract from request headers
 
 -- Handler to redirect from short URL to original URL
 redirectHandler :: AppState -> Text -> Handler NoContent

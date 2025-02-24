@@ -8,6 +8,7 @@ A robust URL shortening service built with Haskell, Servant, and PostgreSQL.
 - Optional custom aliases
 - URL expiration
 - Visit tracking
+- QR code generation for shortened URLs
 - RESTful API
 - Containerized development environment
 - Rate limiting to prevent abuse
@@ -77,9 +78,20 @@ The application will be available at http://localhost:8080.
   "shortCode": "mylink",
   "createdAt": "2025-02-24T12:00:00Z",
   "expiresAt": "2025-03-26T12:00:00Z",
-  "clickCount": 5
+  "clickCount": 5,
+  "qrCodeUrl": "http://localhost:8080/api/qrcode/mylink"
 }
 ```
+
+### Get QR Code for URL
+
+**Endpoint:** `GET /api/qrcode/{shortCode}`
+
+**Optional Query Parameters:**
+- `size`: QR code size in pixels (min: 100, max: 1000, default: 300)
+
+**Response:**
+Binary PNG image data of the QR code that links to the shortened URL.
 
 ### Redirect to Original URL
 
