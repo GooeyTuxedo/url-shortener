@@ -9,13 +9,14 @@ copyright: "2025 MrTuxedo"
 description: A URL shortener web application written in Haskell
 
 dependencies:
-  - base
+  - base >= 4.7 && < 5
   - aeson
   - base64-bytestring
   - bytestring
   - containers
   - cryptonite
-  - envparse
+  - http-client
+  - http-client-tls
   - http-types
   - monad-logger
   - mtl
