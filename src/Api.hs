@@ -45,7 +45,20 @@ server state = shortenUrlHandler state
 
 -- Handler to create a new short URL
 shortenUrlHandler :: AppState -> CreateShortUrlRequest -> Handler ShortUrlResponse
-shortenUrlHandler AppState{..} CreateShortUrlRequest{..} = do
+shortenUrlHandler state@AppState{..} CreateShortUrlRequest{..} = do
+    -- Extract client IP from request (for rate limiting)
+    clientIP <- liftIO $ getClientIP
+    
+    -- Check rate limit
+    allowed <- liftIO $ checkRateLimit appStateRateLimiter clientIP
+    unless allowed $
+        throwError err429 { errBody = "Rate limit exceeded. Please try again later." }
+    
+    -- Check if URL is safe
+    urlSafe <- liftIO $ isUrlSafe appStateContentFilter longUrl
+    unless urlSafe $
+        throwError err400 { errBody = "URL has been blocked for security reasons" }
+    
     now <- liftIO getCurrentTime
     
     -- Calculate expiration time (default: 30 days if not specified)
@@ -76,6 +89,10 @@ shortenUrlHandler AppState{..} CreateShortUrlRequest{..} = do
     case shortUrl of
         Just url -> return $ toShortUrlResponse (baseUrl appStateConfig) url
         Nothing -> throwError err500 { errBody = "Failed to create short URL" }
+  where
+    -- Helper function to get client IP from request
+    getClientIP :: IO Text
+    getClientIP = return "0.0.0.0"  -- In production, extract from request headers
 
 -- Handler to get information about a short URL
 getUrlInfoHandler :: AppState -> Text -> Handler ShortUrlResponse
@@ -93,6 +110,14 @@ getUrlInfoHandler AppState{..} shortCode = do
 -- Handler to redirect from short URL to original URL
 redirectHandler :: AppState -> Text -> Handler NoContent
 redirectHandler AppState{..} shortCode = do
+    -- Extract client IP from request (for rate limiting)
+    clientIP <- liftIO $ getClientIP
+    
+    -- Apply more lenient rate limit for redirects (could be separate limiter)
+    allowed <- liftIO $ checkRateLimit appStateRateLimiter clientIP
+    unless allowed $
+        throwError err429 { errBody = "Rate limit exceeded. Please try again later." }
+    
     result <- liftIO $ runSqlPool 
         (selectFirst [ShortUrlShortCode ==. shortCode] [])
         appStatePool
@@ -111,6 +136,10 @@ redirectHandler AppState{..} shortCode = do
                 }
         Nothing -> 
             throwError err404 { errBody = "Short URL not found" }
+  where
+    -- Helper function to get client IP from request
+    getClientIP :: IO Text
+    getClientIP = return "0.0.0.0"  -- In production, extract from request headers
 
 -- Create a Servant application from our API
 app :: AppState -> Application

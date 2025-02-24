@@ -10,6 +10,9 @@ A robust URL shortening service built with Haskell, Servant, and PostgreSQL.
 - Visit tracking
 - RESTful API
 - Containerized development environment
+- Rate limiting to prevent abuse
+- Content filtering for malicious URLs
+- Security checks for URL validation
 
 ## Tech Stack
 

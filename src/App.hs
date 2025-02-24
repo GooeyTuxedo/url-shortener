@@ -19,14 +19,24 @@ import Models (migrateAll)
 import Network.Wai.Handler.Warp (Port, run)
 import Network.Wai.Middleware.Cors (simpleCors)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
+import Middleware (securityHeaders, rateLimitMiddleware)
 import Servant (Application)
 
 import Api (app)
 
 -- Application state containing all resources needed at runtime
+import AbuseProtection (BlacklistConfig(..), UrlContentFilter, newUrlContentFilter, isUrlSafe)
+import RateLimiter (RateLimiter, RateLimitConfig(..), newRateLimiter, checkRateLimit)
+import Network.HTTP.Client (Manager, newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
+import qualified Data.Set as Set
+
 data AppState = AppState
     { appStatePool :: Pool SqlBackend
     , appStateConfig :: AppConfig
+    , appStateRateLimiter :: RateLimiter
+    , appStateContentFilter :: UrlContentFilter
+    , appStateHttpManager :: Manager
     }
 
 -- Initialize a PostgreSQL connection pool
@@ -55,11 +65,38 @@ startApp config@AppConfig{..} pool = do
     putStrLn $ "Starting server on port " ++ show appPort
     putStrLn $ "Base URL set to: " ++ T.unpack baseUrl
     
+    -- Create rate limiter with default config
+    let rateLimitConfig = RateLimitConfig
+            { maxRequests = 100      -- 100 requests 
+            , perTimeWindow = 60     -- per minute
+            , cleanupInterval = 300  -- clean up every 5 minutes
+            }
+    rateLimiter <- newRateLimiter rateLimitConfig
+    
+    -- Create URL content filter with default config
+    let blacklistConfig = BlacklistConfig
+            { blacklistDomains = Set.fromList 
+                [ "malware-site.com", "phishing-example.com" ]
+            , blacklistPatterns = Set.fromList 
+                [ "phish", "malware", "exploit", "hack" ]
+            , blacklistFile = Nothing
+            , maxRedirects = 5
+            , maxUrlLength = 2048
+            }
+    contentFilter <- newUrlContentFilter blacklistConfig
+    
+    -- Create HTTP manager
+    httpManager <- newManager tlsManagerSettings
+    
     -- Create application state
     let state = AppState
             { appStatePool = pool
             , appStateConfig = config
+            , appStateRateLimiter = rateLimiter
+            , appStateContentFilter = contentFilter
+            , appStateHttpManager = httpManager
             }
     
-    -- Run the web server
-    run appPort $ logStdoutDev $ simpleCors $ app state
+    -- Run the web server with middleware
+    let middleware = logStdoutDev . simpleCors . securityHeaders . rateLimitMiddleware rateLimiter
+    run appPort $ middleware $ app state
