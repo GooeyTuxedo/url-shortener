@@ -1,5 +1,19 @@
 services:
-  app:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - ELM_APP_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+
+  backend:
     build:
       context: .
       target: builder
@@ -25,7 +39,7 @@ services:
     command: stack run
 
   db:
-    image: postgres:14
+    image: postgres:15
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres

@@ -1,0 +1,24 @@
+{
+  "name": "url-shortener-frontend",
+  "version": "1.0.0",
+  "description": "Elm frontend for Haskell URL shortener",
+  "main": "index.js",
+  "scripts": {
+    "start": "parcel index.html",
+    "build": "parcel build index.html --public-url ./",
+    "test": "elm-test"
+  },
+  "keywords": [
+    "elm",
+    "url-shortener"
+  ],
+  "author": "MrTuxedo",
+  "license": "MIT",
+  "devDependencies": {
+    "elm": "^0.19.1-5",
+    "elm-format": "^0.8.5",
+    "elm-hot": "^1.1.6",
+    "elm-test": "^0.19.1-revision9",
+    "parcel-bundler": "^1.12.5"
+  }
+}
