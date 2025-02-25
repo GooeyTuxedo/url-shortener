@@ -71,3 +71,5 @@ tests:
       - servant-client
       - http-client
       - http-client-tls
+      - case-insensitive
+      - QuickCheck

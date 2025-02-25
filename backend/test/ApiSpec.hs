@@ -1,10 +1,16 @@
 module ApiSpec (spec) where
 
 import Test.Hspec
-import Network.Wai.Test (Session, runSession, request, simpleStatus, simpleBody)
+import Network.Wai.Test (Session, SResponse(..), request, runSession, defaultRequest, simpleHeaders)
+import Network.Wai.Internal (requestMethod, requestHeaders, requestBody, rawPathInfo)
+import Network.HTTP.Types.Method (Method)
+import Network.HTTP.Types.Header (HeaderName, hContentType)
+import qualified Data.CaseInsensitive as CI
 import Network.Wai (Application)
-import Network.HTTP.Types (methodGet, methodPost, status200, status301, status404)
-import Data.Aeson (encode, decode, object, (.=))
+import Network.HTTP.Types (methodGet, methodPost, status200, status301, status404, Header)
+import Data.Aeson (Value(..), FromJSON(..), ToJSON(..), encode, decode, object, withObject, (.=), (.:))
+import qualified Data.Aeson.Key as Key
+import qualified Data.Aeson.Types as AT
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Char8 as BS
@@ -12,7 +18,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Control.Monad.IO.Class (liftIO)
-import Config (loadConfig)
+import Config (dbConfig, loadConfig)
 import App (initConnectionPool, runMigrations)
 import Api (apiHandler)
 import AppEnv
@@ -22,7 +28,8 @@ import AbuseProtection (BlacklistConfig(..), newUrlContentFilter)
 import RateLimiter (RateLimitConfig(..), newRateLimiter)
 import qualified Data.Set as Set
 import Models (ShortUrl, ShortUrlId)
-import Database.Persist.Sql (runSqlPool, deleteWhere, (==.))
+import Database.Persist.Sql (Filter, runSqlPool, deleteWhere, (==.))
+import Control.Exception (try, SomeException)
 
 -- Setup application for testing
 setupApp :: IO Application
@@ -37,7 +44,7 @@ setupApp = do
     runMigrations pool
     
     -- Clean the database before tests
-    runSqlPool (deleteWhere []) pool
+    runSqlPool (deleteWhere ([] :: [Filter ShortUrl])) pool
     
     -- Create test environment
     rateLimiter <- newRateLimiter $ RateLimitConfig 100 60 300
@@ -60,6 +67,33 @@ setupApp = do
     -- Return API handler
     return $ apiHandler env
 
+-- Helper function to create and run a request
+doRequest :: Method -> BS.ByteString -> [Header] -> ByteString -> Application -> IO SResponse
+doRequest method path headers body app = do
+    -- Create a request using Network.Wai.Test methods
+    let strictBody = BS.concat $ LBS.toChunks body -- Convert from lazy to strict ByteString
+    let req = defaultRequest
+                { requestMethod = method
+                , requestHeaders = headers
+                , requestBody = return strictBody
+                , rawPathInfo = path  -- Set the path
+                }
+    -- Run the request through the session
+    runSession (request req) app
+
+-- Define response type for parsing
+data ShortUrlResponseJSON = ShortUrlResponseJSON
+    { shortUrlJSON :: Text
+    , originalUrlJSON :: Text
+    , shortCodeJSON :: Text
+    } deriving (Show, Eq)
+
+instance FromJSON ShortUrlResponseJSON where
+    parseJSON = withObject "ShortUrlResponseJSON" $ \v -> ShortUrlResponseJSON
+        <$> v .: Key.fromString "shortUrl"
+        <*> v .: Key.fromString "originalUrl"
+        <*> v .: Key.fromString "shortCode"
+
 -- Test specifications
 spec :: Spec
 spec = beforeAll setupApp $ do
@@ -68,10 +102,10 @@ spec = beforeAll setupApp $ do
             it "creates a short URL" $ \app -> do
                 -- Create request to shorten a URL
                 let body = encode $ object
-                        [ "longUrl" .= ("https://example.com/test" :: Text)
-                        , "expiresIn" .= (30 :: Int)
+                        [ Key.fromString "longUrl" .= T.pack "https://example.com/test"
+                        , Key.fromString "expiresIn" .= (30 :: Int)
                         ]
-                response <- runSession (request methodPost "/api/shorten" [] body) app
+                response <- doRequest methodPost (BS.pack "/api/shorten") [(hContentType, BS.pack "application/json")] body app
                 
                 -- Check status and response body
                 simpleStatus response `shouldBe` status200
@@ -89,59 +123,70 @@ spec = beforeAll setupApp $ do
             it "returns URL information by shortCode" $ \app -> do
                 -- First, create a short URL
                 let createBody = encode $ object
-                        [ "longUrl" .= ("https://example.com/info" :: Text)
+                        [ Key.fromString "longUrl" .= T.pack "https://example.com/info"
                         ]
-                createResp <- runSession (request methodPost "/api/shorten" [] createBody) app
+                createResp <- doRequest methodPost (BS.pack "/api/shorten") [(hContentType, BS.pack "application/json")] createBody app
                 
                 -- Extract shortCode
                 let shortCode = extractShortCode $ simpleBody createResp
                 
                 -- Request URL info
-                infoResp <- runSession (request methodGet ("/api/urls/" <> BS.pack (T.unpack shortCode)) [] "") app
+                infoResp <- doRequest methodGet (BS.pack $ "/api/urls/" ++ T.unpack shortCode) [] LBS.empty app
                 
                 -- Check response
                 simpleStatus infoResp `shouldBe` status200
                 let respBody = simpleBody infoResp
                 case decode respBody of
                     Just resp -> do
-                        getOriginalUrl resp `shouldBe` "https://example.com/info"
+                        getOriginalUrl resp `shouldBe` T.pack "https://example.com/info"
                     Nothing -> expectationFailure "Could not decode info response"
                 
             it "redirects to original URL" $ \app -> do
                 -- Create a short URL
                 let createBody = encode $ object
-                        [ "longUrl" .= ("https://example.com/redirect" :: Text)
+                        [ Key.fromString "longUrl" .= T.pack "https://example.com/redirect"
                         ]
-                createResp <- runSession (request methodPost "/api/shorten" [] createBody) app
+                createResp <- doRequest methodPost (BS.pack "/api/shorten") [(hContentType, BS.pack "application/json")] createBody app
                 
                 -- Extract shortCode
                 let shortCode = extractShortCode $ simpleBody createResp
                 
                 -- Request redirect
-                redirectResp <- runSession (request methodGet ("/" <> BS.pack (T.unpack shortCode)) [] "") app
+                redirectResp <- doRequest methodGet (BS.pack $ "/" ++ T.unpack shortCode) [] LBS.empty app
                 
                 -- Check redirect status and Location header
                 simpleStatus redirectResp `shouldBe` status301
-                let headers = getResponseHeaders redirectResp
-                lookup "Location" headers `shouldBe` Just "https://example.com/redirect"
+                -- Convert CI HeaderName to BS.ByteString for lookups
+                let headers = map (\(n, v) -> (CI.original n, v)) (simpleHeaders redirectResp)
+                lookup (BS.pack "Location") headers `shouldBe` Just (BS.pack "https://example.com/redirect")
         
             it "returns 404 for non-existent shortCode" $ \app -> do
                 -- Request URL info for non-existent shortCode
-                response <- runSession (request methodGet "/api/urls/nonexistent" [] "") app
+                response <- doRequest methodGet (BS.pack "/api/urls/nonexistent") [] LBS.empty app
                 
                 -- Check status
                 simpleStatus response `shouldBe` status404
 
 -- Helper functions
 getShortCode :: Value -> Text
-getShortCode = undefined -- Extract shortCode from response JSON
+getShortCode (Object v) = 
+    case AT.parseMaybe (.: Key.fromString "shortCode") v of
+        Just s -> s
+        Nothing -> T.empty
+getShortCode _ = T.empty
 
 getOriginalUrl :: Value -> Text
-getOriginalUrl = undefined -- Extract originalUrl from response JSON
+getOriginalUrl (Object v) = 
+    case AT.parseMaybe (.: Key.fromString "originalUrl") v of
+        Just s -> s
+        Nothing -> T.empty
+getOriginalUrl _ = T.empty
 
 extractShortCode :: ByteString -> Text
-extractShortCode = undefined -- Extract shortCode from response body
+extractShortCode respBody =
+    case decode respBody of
+        Just obj@(Object _) -> getShortCode obj
+        _ -> T.empty
 
-getResponseHeaders :: Response -> [(BS.ByteString, BS.ByteString)]
-getResponseHeaders = undefined -- Extract headers from response
-
+-- Use the fields directly from SResponse
+-- SResponse has fields: simpleStatus, simpleBody, and simpleHeaders

@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module QRGeneratorSpec (spec) where
 
 import Test.Hspec
@@ -12,14 +14,14 @@ spec = do
   describe "QRGenerator" $ do
     describe "generateQRCode" $ do
       it "successfully generates a QR code for a valid URL" $ do
-        let url = "https://example.com"
+        let url = T.pack "https://example.com"
         result <- pure $ generateQRCode url defaultQROptions
         case result of
           Right bs -> LBS.length bs `shouldSatisfy` (> 0)
           Left err -> expectationFailure $ "Failed to generate QR code: " ++ err
           
       it "adjusts the size based on options" $ do
-        let url = "https://example.com"
+        let url = T.pack "https://example.com"
             smallOptions = defaultQROptions { qrSize = 100 }
             largeOptions = defaultQROptions { qrSize = 500 }
         
@@ -34,7 +36,7 @@ spec = do
           _ -> expectationFailure "Failed to generate QR codes with different sizes"
           
       it "uses the specified error correction level" $ do
-        let url = "https://example.com"
+        let url = T.pack "https://example.com"
             lowECOptions = defaultQROptions { qrErrorLevel = QR.L }
             highECOptions = defaultQROptions { qrErrorLevel = QR.H }
         
@@ -46,4 +48,3 @@ spec = do
             LBS.length bsLow `shouldSatisfy` (> 0)
             LBS.length bsHigh `shouldSatisfy` (> 0)
           _ -> expectationFailure "Failed to generate QR codes with different error levels"
-

@@ -1,16 +1,24 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module ModelsSpec (spec) where
 
 import Test.Hspec
-import Database.Persist.Sql (runSqlPool, insertEntity, get, delete, entityVal, entityKey, (==.))
-import Database.Persist.Postgresql (withPostgresqlPool)
+import Database.Persist.Sql (runSqlPool, insertEntity, get, delete, entityVal, entityKey, (==.), 
+                           update, (+=.), Entity, Filter, deleteWhere, SqlPersistT, ConnectionPool,
+                           SqlBackend, runMigration)
+import Database.Persist.Postgresql (withPostgresqlPool, ConnectionString)
 import Control.Monad.Logger (runStdoutLoggingT)
 import Control.Monad.IO.Class (liftIO)
 import Data.Time (getCurrentTime, addUTCTime, nominalDay)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE (encodeUtf8)
+import Control.Exception (try, SomeException)
 
 import Models
-import Config (loadConfig, AppConfig(..), DatabaseConfig(..))
+
+import Config (loadConfig, AppConfig(..), DatabaseConfig(..), dbConfig)
 
 spec :: Spec
 spec = around withTestDB $ do
@@ -55,22 +63,22 @@ spec = around withTestDB $ do
         _ <- liftIO $ runSqlPool (insertEntity url1) pool
         
         -- Attempt to insert second URL with same short code
-        result <- liftIO $ try $ runSqlPool (insertEntity url2) pool
+        result <- liftIO $ (try $ runSqlPool (insertEntity url2) pool) :: IO (Either SomeException (Entity ShortUrl))
         case result of
           Left (e :: SomeException) -> return () -- Expected exception
           Right _ -> expectationFailure "Should have failed with unique constraint violation"
 
 -- Helper function for updating click count
-updateClickCount :: ShortUrlId -> SqlPersistM ()
+updateClickCount :: ShortUrlId -> SqlPersistT IO ()
 updateClickCount urlId = do
   update urlId [ShortUrlClickCount +=. 1]
 
 -- Set up a test database connection
-withTestDB :: (Pool SqlBackend -> IO a) -> IO a
+withTestDB :: (ConnectionPool -> IO a) -> IO a
 withTestDB action = do
   config <- loadConfig
-  let dbConfig = Config.dbConfig config
-      connStr = createConnectionString dbConfig
+  let dbConf = dbConfig config
+      connStr = createConnectionString dbConf
   
   runStdoutLoggingT $ withPostgresqlPool connStr 1 $ \pool -> do
     -- Run migrations
@@ -84,12 +92,11 @@ withTestDB action = do
 
 -- Create a PostgreSQL connection string
 createConnectionString :: DatabaseConfig -> ConnectionString
-createConnectionString DatabaseConfig{..} =
-  encodeUtf8 $ T.concat 
-    [ "host=", dbHost
-    , " port=", T.pack (show dbPort)
-    , " user=", dbUser
-    , " password=", dbPassword
-    , " dbname=", dbName
+createConnectionString dbConf =
+  TE.encodeUtf8 $ T.concat 
+    [ "host=", dbHost dbConf
+    , " port=", T.pack (show $ dbPort dbConf)
+    , " user=", dbUser dbConf
+    , " password=", dbPassword dbConf
+    , " dbname=", dbName dbConf
     ]
-

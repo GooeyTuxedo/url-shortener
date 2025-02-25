@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module ShortenerSpec (spec) where
 
 import Test.Hspec
@@ -5,6 +7,7 @@ import Shortener (generateShortCode, isValidShortCode)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Control.Monad (replicateM)
+import Data.Char (isAlphaNum)
 
 spec :: Spec
 spec = do
@@ -24,22 +27,17 @@ spec = do
 
     describe "isValidShortCode" $ do
       it "accepts valid short codes" $ do
-        isValidShortCode "abc123" `shouldBe` True
-        isValidShortCode "ABC123" `shouldBe` True
-        isValidShortCode "abcDEF123" `shouldBe` True
+        isValidShortCode (T.pack "abc123") `shouldBe` True
+        isValidShortCode (T.pack "ABC123") `shouldBe` True
+        isValidShortCode (T.pack "abcDEF123") `shouldBe` True
         
       it "rejects short codes that are too short" $ do
-        isValidShortCode "ab" `shouldBe` False
+        isValidShortCode (T.pack "ab") `shouldBe` False
         
       it "rejects short codes that are too long" $ do
-        isValidShortCode (T.replicate 25 "a") `shouldBe` False
+        isValidShortCode (T.replicate 25 (T.pack "a")) `shouldBe` False
         
       it "rejects short codes with non-alphanumeric characters" $ do
-        isValidShortCode "abc-123" `shouldBe` False
-        isValidShortCode "abc_123" `shouldBe` False
-        isValidShortCode "abc 123" `shouldBe` False
-
--- Helper function
-isAlphaNum :: Char -> Bool
-isAlphaNum c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-
+        isValidShortCode (T.pack "abc-123") `shouldBe` False
+        isValidShortCode (T.pack "abc_123") `shouldBe` False
+        isValidShortCode (T.pack "abc 123") `shouldBe` False

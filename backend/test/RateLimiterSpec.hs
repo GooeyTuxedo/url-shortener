@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module RateLimiterSpec (spec) where
 
 import Test.Hspec
@@ -15,7 +17,7 @@ spec = do
       rateLimiter <- newRateLimiter $ RateLimitConfig 5 1 10
       
       -- Make 3 requests (under the limit)
-      results <- replicateM 3 $ checkRateLimit rateLimiter "test-client"
+      results <- replicateM 3 $ checkRateLimit rateLimiter (T.pack "test-client")
       
       -- All requests should be allowed
       all id results `shouldBe` True
@@ -25,7 +27,7 @@ spec = do
       rateLimiter <- newRateLimiter $ RateLimitConfig 3 1 10
       
       -- Make 5 requests (over the limit)
-      results <- replicateM 5 $ checkRateLimit rateLimiter "test-client-2"
+      results <- replicateM 5 $ checkRateLimit rateLimiter (T.pack "test-client-2")
       
       -- Only first 3 should be allowed
       take 3 results `shouldBe` [True, True, True]
@@ -36,36 +38,36 @@ spec = do
       rateLimiter <- newRateLimiter $ RateLimitConfig 2 1 10
       
       -- Use up the limit
-      replicateM_ 2 $ checkRateLimit rateLimiter "test-client-3"
+      replicateM_ 2 $ checkRateLimit rateLimiter (T.pack "test-client-3")
       
       -- Next request should be blocked
-      checkRateLimit rateLimiter "test-client-3" >>= (`shouldBe` False)
+      checkRateLimit rateLimiter (T.pack "test-client-3") >>= (`shouldBe` False)
       
       -- Wait for time window to pass
       threadDelay 1100000  -- 1.1 second in microseconds
       
       -- Should be allowed again
-      checkRateLimit rateLimiter "test-client-3" >>= (`shouldBe` True)
+      checkRateLimit rateLimiter (T.pack "test-client-3") >>= (`shouldBe` True)
       
     it "treats different clients separately" $ do
       -- Create a rate limiter with 2 requests per second
       rateLimiter <- newRateLimiter $ RateLimitConfig 2 1 10
       
       -- Use up the limit for client A
-      replicateM_ 2 $ checkRateLimit rateLimiter "client-a"
+      replicateM_ 2 $ checkRateLimit rateLimiter (T.pack "client-a")
       
       -- Client A should be blocked
-      checkRateLimit rateLimiter "client-a" >>= (`shouldBe` False)
+      checkRateLimit rateLimiter (T.pack "client-a") >>= (`shouldBe` False)
       
       -- But client B should still be allowed
-      checkRateLimit rateLimiter "client-b" >>= (`shouldBe` True)
+      checkRateLimit rateLimiter (T.pack "client-b") >>= (`shouldBe` True)
       
     it "cleans up expired entries" $ do
       -- Create a rate limiter with cleanup after 1 second
       rateLimiter <- newRateLimiter $ RateLimitConfig 2 1 1
       
       -- Use the limiter
-      replicateM_ 2 $ checkRateLimit rateLimiter "cleanup-test"
+      replicateM_ 2 $ checkRateLimit rateLimiter (T.pack "cleanup-test")
       
       -- Wait for cleanup
       threadDelay 1100000  -- 1.1 seconds
@@ -74,5 +76,4 @@ spec = do
       cleanupRateLimiter rateLimiter
       
       -- Should be allowed again
-      checkRateLimit rateLimiter "cleanup-test" >>= (`shouldBe` True)
-
+      checkRateLimit rateLimiter (T.pack "cleanup-test") >>= (`shouldBe` True)

@@ -22,9 +22,13 @@ source-repository head
 library
   exposed-modules:
       AbuseProtection
+      Analytics
       Api
+      ApiHandlers
       App
+      AppEnv
       Config
+      IPUtils
       Middleware
       Models
       QRGenerator
@@ -43,12 +47,14 @@ library
     , bytestring
     , containers
     , cryptonite
-    , envparse
+    , exceptions
     , http-client
     , http-client-tls
     , http-types
     , monad-logger
     , mtl
+    , network
+    , network-uri
     , persistent
     , persistent-postgresql
     , persistent-template
@@ -84,12 +90,14 @@ executable url-shortener-exe
     , bytestring
     , containers
     , cryptonite
-    , envparse
+    , exceptions
     , http-client
     , http-client-tls
     , http-types
     , monad-logger
     , mtl
+    , network
+    , network-uri
     , persistent
     , persistent-postgresql
     , persistent-template
@@ -115,25 +123,36 @@ test-suite url-shortener-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      ApiSpec
+      ModelsSpec
+      PropertyTests
+      QRGeneratorSpec
+      RateLimiterSpec
+      ShortenerSpec
+      UtilsSpec
       Paths_url_shortener
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       JuicyPixels
+    , QuickCheck
     , aeson
     , base >=4.7 && <5
     , base64-bytestring
     , bytestring
+    , case-insensitive
     , containers
     , cryptonite
-    , envparse
+    , exceptions
     , hspec
     , http-client
     , http-client-tls
     , http-types
     , monad-logger
     , mtl
+    , network
+    , network-uri
     , persistent
     , persistent-postgresql
     , persistent-template
