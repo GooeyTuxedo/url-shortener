@@ -15,14 +15,20 @@ dependencies:
   - bytestring
   - containers
   - cryptonite
+  - exceptions
   - http-client
   - http-client-tls
   - http-types
+  - JuicyPixels
   - monad-logger
   - mtl
+  - network
+  - network-uri
   - persistent
   - persistent-postgresql
   - persistent-template
+  - qrcode-core
+  - qrcode-juicypixels
   - random
   - resource-pool
   - servant
@@ -36,9 +42,6 @@ dependencies:
   - wai-extra
   - wai-logger
   - warp
-  - JuicyPixels
-  - qrcode-core
-  - qrcode-juicypixels
 
 library:
   source-dirs: src

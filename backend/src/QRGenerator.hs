@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module QRGenerator
     ( generateQRCode
@@ -6,13 +7,13 @@ module QRGenerator
     , defaultQROptions
     ) where
 
-import Codec.Picture (DynamicImage, PixelRGB8(..), encodePng, generateImage)
+import Codec.Picture (DynamicImage, PixelRGB8(..), encodePng)
 import qualified Codec.QRCode as QR
+import qualified Codec.QRCode.Data.TextEncoding as TE
 import qualified Codec.QRCode.JuicyPixels as QRJP
 import Data.ByteString.Lazy (ByteString)
 import Data.Text (Text)
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
 
 -- Options for QR code generation
 data QROptions = QROptions
@@ -31,14 +32,10 @@ defaultQROptions = QROptions
 
 -- Generate a QR code for the given URL and return PNG image data
 generateQRCode :: Text -> QROptions -> Either String ByteString
-generateQRCode url options = do
+generateQRCode url QROptions{..} = 
     -- Create QR code with the specified text
-    qrCode <- QR.encodeText qrErrorLevel QR.Alphanumeric url
-    
-    -- Convert to image using JuicyPixels
-    let image = QRJP.renderQRCode qrSize qrBorder qrCode
-    
-    -- Return the image as PNG data
-    return $ encodePng image
-  where
-    QROptions{..} = options
+    case QR.encodeText (QR.defaultQRCodeOptions qrErrorLevel) TE.Utf8WithECI url of
+        Nothing -> Left "Failed to generate QR code"
+        Just qrCode -> 
+            -- Convert to image using JuicyPixels
+            Right $ encodePng (QRJP.toImage qrSize qrBorder qrCode)

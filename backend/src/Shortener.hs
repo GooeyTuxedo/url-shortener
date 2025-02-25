@@ -17,8 +17,8 @@ codeChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
 
 -- Generate a random short code of specified length
 generateShortCode :: Int -> IO Text
-generateShortCode length = do
-    code <- replicateM length (randomChar codeChars)
+generateShortCode codeLength = do
+    code <- replicateM codeLength (randomChar codeChars)
     return $ T.pack code
   where
     randomChar :: String -> IO Char

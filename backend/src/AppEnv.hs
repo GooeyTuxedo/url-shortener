@@ -7,6 +7,7 @@ module AppEnv
     , AppError(..)
     , AppAction
     , runAppM
+    , runAppAction
     , throwAppError
     , catchAppError
     , liftAppAction
@@ -15,9 +16,11 @@ module AppEnv
 
 import Config (AppConfig)
 import Control.Monad.Catch (MonadCatch, MonadThrow, catch, throwM)
-import Control.Monad.Except (ExceptT, MonadError, runExceptT, throwError)
+import Control.Monad.Except (MonadError, runExceptT, throwError, catchError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (MonadReader, ReaderT, ask, runReaderT)
+import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Except (ExceptT)
 import Data.Pool (Pool)
 import Data.Text (Text)
 import Database.Persist.Sql (SqlBackend)
@@ -80,13 +83,8 @@ throwAppError = throwError
 
 -- Catch an AppError
 catchAppError :: AppAction a -> (AppError -> AppAction a) -> AppAction a
-catchAppError action handler = ExceptT $ do
-    result <- runExceptT action
-    case result of
-        Left err -> runExceptT (handler err)
-        Right val -> return (Right val)
+catchAppError = catchError
 
 -- Lift an AppM action into AppAction
 liftAppAction :: AppM a -> AppAction a
-liftAppAction action = ExceptT $ do
-  Right <$> action
+liftAppAction = lift

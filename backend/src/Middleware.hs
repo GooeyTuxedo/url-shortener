@@ -8,7 +8,7 @@ module Middleware
 import Network.Wai
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
-import Network.HTTP.Types (status429, hContentType)
+import Network.HTTP.Types (status429, hContentType, ResponseHeaders)
 import RateLimiter (RateLimiter, checkRateLimit)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
@@ -25,7 +25,7 @@ securityHeaders app req respond = app req $ \res -> respond $
             , ("Content-Security-Policy", "default-src 'self'")
             , ("Referrer-Policy", "strict-origin-when-cross-origin")
             ]
-    in res { responseHeaders = secHeaders ++ headers }
+    in mapResponseHeaders (secHeaders ++) res
 
 -- Rate limiting middleware using our RateLimiter module
 rateLimitMiddleware :: RateLimiter -> Middleware
@@ -47,7 +47,5 @@ rateLimitMiddleware rateLimiter app req respond = do
 getClientId :: Request -> Text
 getClientId req =
     -- In production, you'd extract IP from X-Forwarded-For or other headers
-    -- For simplicity, we'll just use remote host or fallback to a default
-    case remoteHost req of
-        Nothing -> "unknown"
-        Just _ -> "client"  -- In real code, convert the SockAddr to Text
+    -- For simplicity, we'll just use a default
+    "client-ip"

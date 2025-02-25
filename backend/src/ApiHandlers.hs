@@ -38,7 +38,7 @@ import Shortener (generateShortCode, isValidShortCode)
 import Utils (validateUrlSafe)
 
 -- Handler to create a new short URL
-shortenUrlHandler :: MonadIO m => Request -> CreateShortUrlRequest -> AppAction ShortUrlResponse
+shortenUrlHandler :: Request -> CreateShortUrlRequest -> AppAction ShortUrlResponse
 shortenUrlHandler req CreateShortUrlRequest{..} = do
     -- Get environment
     env <- ask
@@ -95,7 +95,7 @@ shortenUrlHandler req CreateShortUrlRequest{..} = do
         Nothing -> throwAppError $ DatabaseError "Failed to create short URL"
 
 -- Handler to get information about a short URL
-getUrlInfoHandler :: MonadIO m => Text -> AppAction ShortUrlResponse
+getUrlInfoHandler :: Text -> AppAction ShortUrlResponse
 getUrlInfoHandler shortCode = do
     -- Get environment
     env <- ask
@@ -114,7 +114,7 @@ getUrlInfoHandler shortCode = do
             throwAppError $ ResourceNotFound "Short URL not found"
 
 -- Handler to generate QR code for a short URL
-generateQRCodeHandler :: MonadIO m => Request -> Text -> Maybe Int -> AppAction ByteString
+generateQRCodeHandler :: Request -> Text -> Maybe Int -> AppAction ByteString
 generateQRCodeHandler req shortCode mSize = do
     -- Get environment
     env <- ask
@@ -155,7 +155,7 @@ generateQRCodeHandler req shortCode mSize = do
             throwAppError $ ResourceNotFound "Short URL not found"
 
 -- Handler to redirect from short URL to original URL
-redirectHandler :: MonadIO m => Request -> Text -> AppAction (Headers '[Header "Location" Text] NoContent)
+redirectHandler :: Request -> Text -> AppAction (Headers '[Header "Location" Text] NoContent)
 redirectHandler req shortCode = do
     -- Get environment
     env <- ask

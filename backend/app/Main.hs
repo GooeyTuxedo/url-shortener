@@ -4,16 +4,20 @@ import Api (apiHandler)
 import AppEnv (AppEnv(..))
 import App (initConnectionPool, runMigrations)
 import Config (loadConfig)
+import qualified Config as C
 import Control.Exception (bracket)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Cors (simpleCors)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Middleware (securityHeaders, rateLimitMiddleware)
-import AbuseProtection (BlacklistConfig(..), newUrlContentFilter)
+import AbuseProtection (newUrlContentFilter)
+import qualified AbuseProtection as A
 import RateLimiter (RateLimiter, RateLimitConfig(..), newRateLimiter)
 import Network.HTTP.Client (Manager, newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import qualified Data.Set as Set
+import Data.Text (Text)
+import qualified Data.Text as T
 
 main :: IO ()
 main = do
@@ -23,7 +27,7 @@ main = do
     -- Initialize resources with proper cleanup
     bracket initResources cleanupResources $ \env -> do
         -- Run the web server
-        let port = appPort (envConfig env)
+        let port = C.appPort (envConfig env)
         putStrLn $ "Starting server on port " ++ show port
         run port $ middleware env $ apiHandler env
   where
@@ -32,26 +36,26 @@ main = do
         config <- loadConfig
         
         -- Initialize database
-        pool <- initConnectionPool (dbConfig config)
+        pool <- initConnectionPool (C.dbConfig config)
         runMigrations pool
         
         -- Initialize rate limiter
         let rateLimitConfig = RateLimitConfig
-                { maxRequests = rateLimitRequests config
-                , perTimeWindow = rateLimitWindow config
+                { maxRequests = C.rateLimitRequests config
+                , perTimeWindow = C.rateLimitWindow config
                 , cleanupInterval = 300  -- clean up every 5 minutes
                 }
         rateLimiter <- newRateLimiter rateLimitConfig
         
         -- Initialize content filter
-        let blacklistConfig = BlacklistConfig
-                { blacklistDomains = Set.fromList 
-                    [ "malware-site.com", "phishing-example.com" ]
-                , blacklistPatterns = Set.fromList 
-                    [ "phish", "malware", "exploit", "hack" ]
-                , blacklistFile = Nothing
-                , maxRedirects = 5
-                , maxUrlLength = maxUrlLength config
+        let blacklistConfig = A.BlacklistConfig
+                { A.blacklistDomains = Set.fromList 
+                    [ T.pack "malware-site.com", T.pack "phishing-example.com" ]
+                , A.blacklistPatterns = Set.fromList 
+                    [ T.pack "phish", T.pack "malware", T.pack "exploit", T.pack "hack" ]
+                , A.blacklistFile = Nothing
+                , A.maxRedirects = 5
+                , A.maxUrlLength = C.maxUrlLength config
                 }
         contentFilter <- newUrlContentFilter blacklistConfig
         
