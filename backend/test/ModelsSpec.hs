@@ -10,7 +10,7 @@ import Database.Persist.Sql (runSqlPool, insertEntity, get, delete, entityVal, e
 import Database.Persist.Postgresql (withPostgresqlPool, ConnectionString)
 import Control.Monad.Logger (runStdoutLoggingT)
 import Control.Monad.IO.Class (liftIO)
-import Data.Time (getCurrentTime, addUTCTime, nominalDay)
+import Data.Time (UTCTime, getCurrentTime, addUTCTime, nominalDay, diffUTCTime)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE (encodeUtf8)
@@ -19,6 +19,18 @@ import Control.Exception (try, SomeException)
 import Models
 
 import Config (loadConfig, AppConfig(..), DatabaseConfig(..), dbConfig)
+
+-- Helper to compare ShortUrls ignoring microseconds in timestamps
+shortUrlEqual :: ShortUrl -> ShortUrl -> Bool
+shortUrlEqual a b =
+  shortUrlOriginalUrl a == shortUrlOriginalUrl b &&
+  shortUrlShortCode a == shortUrlShortCode b &&
+  shortUrlClickCount a == shortUrlClickCount b &&
+  (abs (diffUTCTime (shortUrlCreatedAt a) (shortUrlCreatedAt b)) < 1) &&
+  case (shortUrlExpiresAt a, shortUrlExpiresAt b) of
+    (Just ta, Just tb) -> abs (diffUTCTime ta tb) < 1
+    (Nothing, Nothing) -> True
+    _ -> False
 
 spec :: Spec
 spec = around withTestDB $ do
@@ -33,8 +45,10 @@ spec = around withTestDB $ do
         entityId <- liftIO $ runSqlPool (insertEntity shortUrl) pool
         retrieved <- liftIO $ runSqlPool (get $ entityKey entityId) pool
         
-        -- Verify
-        retrieved `shouldBe` Just shortUrl
+        -- Verify using custom comparison that ignores microsecond precision differences
+        case retrieved of
+          Just retrievedUrl -> shortUrlEqual shortUrl retrievedUrl `shouldBe` True
+          Nothing -> expectationFailure "Failed to retrieve ShortUrl"
         
       it "can have its click count updated" $ \pool -> do
         now <- liftIO getCurrentTime

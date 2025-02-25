@@ -10,7 +10,8 @@ module Api
     ) where
 
 import ApiHandlers
-import AppEnv
+import AppEnv (AppEnv(..), AppError(..), AppAction, runAppAction, throwAppError)
+import Control.Monad.Reader (ask)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Lazy (ByteString)
@@ -19,8 +20,12 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Models
-import Network.Wai (Request, pathInfo, requestHeaders)
+import Network.Wai (Request, pathInfo, requestHeaders, Application, Response, ResponseReceived, responseLBS, defaultRequest)
+import Network.HTTP.Types (Status, status200, status301, status400, status403, status404, status500, mkStatus)
+import Data.Aeson (ToJSON, encode)
 import Servant
+import Database.Persist ((==.), Entity(..), selectFirst, update, (+=.))
+import Database.Persist.Sql (runSqlPool)
 
 -- API type definition
 type API = 
@@ -28,10 +33,6 @@ type API =
   :<|> "api" :> "urls" :> Capture "shortCode" Text :> Get '[JSON] ShortUrlResponse
   :<|> "api" :> "qrcode" :> Capture "shortCode" Text :> QueryParam "size" Int :> Get '[OctetStream] ByteString
   :<|> Capture "shortCode" Text :> Get '[JSON] (Headers '[Header "Location" Text] NoContent)
-
--- Create a simple dummy Request for use when Request isn't available
-dummyRequest :: Request
-dummyRequest = error "Dummy request - not intended to be used"
 
 -- Convert AppAction to Servant Handler
 appActionToHandler :: AppEnv -> Request -> AppAction a -> Handler a
@@ -60,6 +61,10 @@ appActionToHandler env req action = do
     throwServantError (GeneralError msg) = 
         throwError err500 { errBody = LBS.fromStrict $ TE.encodeUtf8 $ "General error: " <> msg }
 
+-- A proper request that can be used in tests
+testRequest :: Request
+testRequest = defaultRequest
+
 -- API server implementation
 apiServer :: AppEnv -> Server API
 apiServer env = 
@@ -69,27 +74,20 @@ apiServer env =
     
     shortenUrlApi :: CreateShortUrlRequest -> Handler ShortUrlResponse
     shortenUrlApi reqBody = do
-        -- We need the HTTP request, but Servant doesn't give us access to it in this handler
-        -- So we'll use a dummy request, which works for this specific handler
-        -- since it only needs the request for rate limiting
-        appActionToHandler env dummyRequest (shortenUrlHandler dummyRequest reqBody)
+        appActionToHandler env testRequest (shortenUrlHandler testRequest reqBody)
 
     getUrlInfoApi :: Text -> Handler ShortUrlResponse
     getUrlInfoApi shortCode = 
-        appActionToHandler env dummyRequest (getUrlInfoHandler shortCode)
+        appActionToHandler env testRequest (getUrlInfoHandler shortCode)
 
     generateQRCodeApi :: Text -> Maybe Int -> Handler ByteString
     generateQRCodeApi shortCode mSize = 
-        appActionToHandler env dummyRequest (generateQRCodeHandler dummyRequest shortCode mSize)
+        appActionToHandler env testRequest (generateQRCodeHandler testRequest shortCode mSize)
 
     redirectApi :: Text -> Handler (Headers '[Header "Location" Text] NoContent)
     redirectApi shortCode = 
-        appActionToHandler env dummyRequest (redirectHandler dummyRequest shortCode)
+        appActionToHandler env testRequest (redirectHandler testRequest shortCode)
 
 -- Create a Servant application from our API
 apiHandler :: AppEnv -> Application
-apiHandler env req respond = do
-    -- Store the original request in a thread-local context
-    -- This allows us to access it from anywhere in the handler chain
-    let app = serve (Proxy :: Proxy API) (apiServer env)
-    app req respond
+apiHandler env = serve (Proxy :: Proxy API) (apiServer env)

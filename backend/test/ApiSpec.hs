@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module ApiSpec (spec) where
 
 import Test.Hspec
@@ -100,12 +102,22 @@ spec = beforeAll setupApp $ do
     describe "API Integration" $ do
         describe "URL Shortening API" $ do
             it "creates a short URL" $ \app -> do
+                -- Print debug info
+                liftIO $ putStrLn "Starting test: creates a short URL"
+            
                 -- Create request to shorten a URL
                 let body = encode $ object
                         [ Key.fromString "longUrl" .= T.pack "https://example.com/test"
                         , Key.fromString "expiresIn" .= (30 :: Int)
                         ]
-                response <- doRequest methodPost (BS.pack "/api/shorten") [(hContentType, BS.pack "application/json")] body app
+                
+                liftIO $ putStrLn $ "Request body: " ++ show body
+                
+                response <- doRequest methodPost "/api/shorten" [(hContentType, "application/json")] body app
+                
+                -- Debug info
+                liftIO $ putStrLn $ "Response status: " ++ show (simpleStatus response)
+                liftIO $ putStrLn $ "Response body: " ++ show (simpleBody response)
                 
                 -- Check status and response body
                 simpleStatus response `shouldBe` status200
@@ -125,13 +137,22 @@ spec = beforeAll setupApp $ do
                 let createBody = encode $ object
                         [ Key.fromString "longUrl" .= T.pack "https://example.com/info"
                         ]
-                createResp <- doRequest methodPost (BS.pack "/api/shorten") [(hContentType, BS.pack "application/json")] createBody app
+                createResp <- doRequest methodPost "/api/shorten" [(hContentType, "application/json")] createBody app
                 
                 -- Extract shortCode
                 let shortCode = extractShortCode $ simpleBody createResp
+                    urlPath = "/api/urls/" <> TE.encodeUtf8 shortCode
+                
+                -- Debug info
+                liftIO $ putStrLn $ "Extracted short code: " ++ T.unpack shortCode
+                liftIO $ putStrLn $ "Request path: " ++ BS.unpack urlPath
                 
                 -- Request URL info
-                infoResp <- doRequest methodGet (BS.pack $ "/api/urls/" ++ T.unpack shortCode) [] LBS.empty app
+                infoResp <- doRequest methodGet urlPath [] LBS.empty app
+                
+                -- Debug info
+                liftIO $ putStrLn $ "Info response status: " ++ show (simpleStatus infoResp)
+                liftIO $ putStrLn $ "Info response body: " ++ show (simpleBody infoResp)
                 
                 -- Check response
                 simpleStatus infoResp `shouldBe` status200
@@ -146,13 +167,22 @@ spec = beforeAll setupApp $ do
                 let createBody = encode $ object
                         [ Key.fromString "longUrl" .= T.pack "https://example.com/redirect"
                         ]
-                createResp <- doRequest methodPost (BS.pack "/api/shorten") [(hContentType, BS.pack "application/json")] createBody app
+                createResp <- doRequest methodPost "/api/shorten" [(hContentType, "application/json")] createBody app
                 
                 -- Extract shortCode
                 let shortCode = extractShortCode $ simpleBody createResp
+                    redirectPath = "/" <> TE.encodeUtf8 shortCode
+                
+                -- Debug info
+                liftIO $ putStrLn $ "Redirect test - short code: " ++ T.unpack shortCode
+                liftIO $ putStrLn $ "Redirect path: " ++ BS.unpack redirectPath
                 
                 -- Request redirect
-                redirectResp <- doRequest methodGet (BS.pack $ "/" ++ T.unpack shortCode) [] LBS.empty app
+                redirectResp <- doRequest methodGet redirectPath [] LBS.empty app
+                
+                -- Debug info
+                liftIO $ putStrLn $ "Redirect response status: " ++ show (simpleStatus redirectResp)
+                liftIO $ putStrLn $ "Redirect headers: " ++ show (simpleHeaders redirectResp)
                 
                 -- Check redirect status and Location header
                 simpleStatus redirectResp `shouldBe` status301
@@ -162,7 +192,7 @@ spec = beforeAll setupApp $ do
         
             it "returns 404 for non-existent shortCode" $ \app -> do
                 -- Request URL info for non-existent shortCode
-                response <- doRequest methodGet (BS.pack "/api/urls/nonexistent") [] LBS.empty app
+                response <- doRequest methodGet "/api/urls/nonexistent" [] LBS.empty app
                 
                 -- Check status
                 simpleStatus response `shouldBe` status404
@@ -187,6 +217,3 @@ extractShortCode respBody =
     case decode respBody of
         Just obj@(Object _) -> getShortCode obj
         _ -> T.empty
-
--- Use the fields directly from SResponse
--- SResponse has fields: simpleStatus, simpleBody, and simpleHeaders
