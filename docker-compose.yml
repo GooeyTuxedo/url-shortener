@@ -6,7 +6,6 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
       - /app/node_modules
     environment:
       - ELM_APP_API_URL=http://localhost:8080
@@ -18,7 +17,6 @@ services:
       context: ./backend
       target: builder
     volumes:
-      - ./backend:/app
       - stack-data:/root/.stack
     ports:
       - "8080:8080"

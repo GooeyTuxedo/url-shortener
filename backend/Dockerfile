@@ -11,7 +11,9 @@ RUN stack setup
 RUN stack build --only-dependencies
 
 # Copy source code
-COPY . .
+COPY app/ ./app/
+COPY src/ ./src/
+COPY test/ ./test/
 
 # Build the application
 RUN stack build
