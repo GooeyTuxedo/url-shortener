@@ -91,7 +91,7 @@ viewShortenForm form isLoading =
             , paddingXY 0 10
             ]
             { onChange = ExpiresInChanged
-            , selected = form.expiresIn
+            , selected = Just form.expiresIn
             , label = Input.labelAbove [ Font.bold ] (text "Expires In")
             , options =
                 [ Input.option Nothing (text "Never")
@@ -112,7 +112,7 @@ viewShortenForm form isLoading =
                 { offset = ( 0, 2 )
                 , size = 0
                 , blur = 4
-                , color = rgba 0 0 0 0.2)
+                , color = rgba 0 0 0 0.2
                 }
             , mouseOver
                 [ Background.color (rgb255 41 128 185) ]

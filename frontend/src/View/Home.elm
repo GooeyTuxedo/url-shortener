@@ -1,22 +1,17 @@
 module View.Home exposing (viewHome)
 
 import Element exposing (..)
-import Element.Background as Background
-import Element.Border as Border
 import Element.Font as Font
-import Element.Input as Input
-import Element.Region as Region
-import Html.Attributes
 import Msg exposing (Msg(..))
-import Types exposing (Model, ShortUrl, ShortenForm)
-import View.Layout exposing (layout)
+import Types exposing (Model)
+import View.Layout
 import View.Shortener exposing (viewShortener)
 import View.UrlList exposing (viewUrlList)
 
 
 viewHome : Model -> Element Msg
 viewHome model =
-    layout model <|
+    View.Layout.layout model <|
         column
             [ width fill
             , spacing 40

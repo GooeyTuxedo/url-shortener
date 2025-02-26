@@ -7,12 +7,12 @@ import Element.Font as Font
 import Element.Input as Input
 import Msg exposing (Msg(..))
 import Types exposing (Model)
-import View.Layout exposing (layout)
+import View.Layout
 
 
 viewNotFound : Model -> Element Msg
 viewNotFound model =
-    layout model <|
+    View.Layout.layout model <|
         column
             [ width fill
             , spacing 30

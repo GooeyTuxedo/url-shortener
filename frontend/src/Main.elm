@@ -6,8 +6,8 @@ import Browser.Navigation as Nav
 import Element exposing (..)
 import Html exposing (Html)
 import Http
-import Json.Decode as Decode
 import Msg exposing (Msg(..))
+import Process
 import Route
 import Task
 import Time
@@ -58,8 +58,7 @@ init flags url key =
     in
     ( model
     , Cmd.batch
-        [ Task.perform         TimeReceived time ->
-            ( model, Cmd.none )
+        [ Task.perform (\time -> TimeReceived time) Time.now
         , loadPage model page
         ]
     )
@@ -165,7 +164,7 @@ update msg model =
         SubmitForm ->
             if String.isEmpty model.shortenForm.url then
                 ( { model | notification = Just { message = "Please enter a URL", notificationType = Error } }
-                , Cmd.batch [ Task.perform (\_ -> DismissNotification) (Task.sleep 3000) ]
+                , Cmd.batch [ Task.perform (\_ -> DismissNotification) (Process.sleep 3000) ]
                 )
             else
                 let
@@ -204,7 +203,7 @@ update msg model =
                         , isLoading = False
                         , notification = Just { message = "URL successfully shortened!", notificationType = Success }
                       }
-                    , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+                    , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                     )
 
                 Err error ->
@@ -227,7 +226,7 @@ update msg model =
                         | isLoading = False
                         , notification = Just { message = errorMsg, notificationType = Error }
                       }
-                    , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+                    , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                     )
 
         LoadUrls ->
@@ -245,7 +244,7 @@ update msg model =
                         | isLoading = False
                         , notification = Just { message = "Failed to load URLs", notificationType = Error }
                       }
-                    , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+                    , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                     )
 
         LoadUrlDetails shortCode ->
@@ -263,7 +262,7 @@ update msg model =
                         | isLoading = False
                         , notification = Just { message = "Failed to load URL details", notificationType = Error }
                       }
-                    , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+                    , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                     )
 
         NavigateTo path ->
@@ -273,7 +272,7 @@ update msg model =
 
         ShowNotification message notificationType ->
             ( { model | notification = Just { message = message, notificationType = notificationType } }
-            , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+            , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
             )
 
         DismissNotification ->
@@ -281,7 +280,7 @@ update msg model =
 
         CopyToClipboard text ->
             ( model
-            , copyToClipboard text
+            , Ports.copyToClipboard text
             )
 
         ClipboardResult status ->
@@ -289,18 +288,18 @@ update msg model =
                 ( { model
                     | notification = Just { message = "Copied to clipboard!", notificationType = Success }
                   }
-                , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+                , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                 )
             else
                 ( { model
                     | notification = Just { message = "Failed to copy to clipboard", notificationType = Error }
                   }
-                , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+                , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                 )
 
         DownloadQrCode url filename ->
             ( model
-            , downloadQrCode { url = url, filename = filename }
+            , Ports.downloadQrCode { url = url, filename = filename }
             )
 
         QrCodeDownloaded status ->
@@ -308,13 +307,13 @@ update msg model =
                 ( { model
                     | notification = Just { message = "QR code downloaded!", notificationType = Success }
                   }
-                , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+                , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                 )
             else
                 ( { model
                     | notification = Just { message = "Failed to download QR code", notificationType = Error }
                   }
-                , Task.perform (\_ -> DismissNotification) (Task.sleep 3000)
+                , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                 )
                 
         TimeReceived time ->

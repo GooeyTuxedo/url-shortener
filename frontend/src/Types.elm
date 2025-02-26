@@ -69,12 +69,12 @@ type NotificationType
     | Warning
 
 
-type ClipboardStatus =
+type alias ClipboardStatus =
     { success : Bool
     , text : String
     }
 
 
-type QrCodeDownloadStatus =
+type alias QrCodeDownloadStatus =
     { success : Bool
     }

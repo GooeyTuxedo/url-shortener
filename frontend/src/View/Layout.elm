@@ -4,8 +4,9 @@ import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
-import Element.Input as Input
 import Element.Region as Region
+import Element.Events exposing (onClick)
+import Html.Attributes
 import Msg exposing (Msg(..))
 import Route exposing (Route(..))
 import Types exposing (Model, Notification, NotificationType(..))
@@ -182,7 +183,7 @@ viewNotification notification =
             , blur = 4
             , color = rgba 0 0 0 0.2
             }
-        , htmlAttribute (class "notification")
+        , class "notification"
         ]
         [ paragraph [] [ text notification.message ]
         , el [ alignRight, pointer, onClick DismissNotification ] (text "×")
