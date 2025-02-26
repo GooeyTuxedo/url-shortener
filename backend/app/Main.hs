@@ -7,7 +7,7 @@ import Config (loadConfig)
 import qualified Config as C
 import Control.Exception (bracket)
 import Network.Wai.Handler.Warp (run)
-import Network.Wai.Middleware.Cors (simpleCors)
+import Network.Wai.Middleware.Cors (cors, simpleCorsResourcePolicy, CorsResourcePolicy(..))
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Middleware (securityHeaders, rateLimitMiddleware)
 import AbuseProtection (newUrlContentFilter)
@@ -15,6 +15,8 @@ import qualified AbuseProtection as A
 import RateLimiter (RateLimiter, RateLimitConfig(..), newRateLimiter)
 import Network.HTTP.Client (Manager, newManager)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Network.HTTP.Types.Method (Method, methodGet, methodPost, methodPut, methodDelete, methodOptions)
+import Network.HTTP.Types.Header (hAuthorization, hContentType)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -81,6 +83,15 @@ main = do
     -- Apply middleware to the application
     middleware env = 
         logStdoutDev . 
-        simpleCors . 
+        corsWithContentType . 
         securityHeaders . 
         rateLimitMiddleware (envRateLimiter env)
+        where
+            -- Custom CORS policy that allows requests from any origin
+            corsWithContentType = cors $ \request -> Just $ simpleCorsResourcePolicy
+                { corsOrigins = Nothing  -- Allow any origin
+                , corsMethods = [methodGet, methodPost, methodPut, methodDelete, methodOptions]
+                , corsRequestHeaders = [hAuthorization, hContentType]
+                , corsExposedHeaders = Just [hContentType]
+                , corsMaxAge = Just 3600
+                }
