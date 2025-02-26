@@ -14,8 +14,8 @@ COPY src ./src
 
 RUN npm run build
 
-# Make port 3000 available outside the container
-EXPOSE 3000
+# Make port 1234 available outside the container
+EXPOSE 1234
 
 # Start the development server
 CMD ["npm", "start"]
