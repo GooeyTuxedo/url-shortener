@@ -32,7 +32,7 @@ type API =
        "api" :> "shorten" :> ReqBody '[JSON] CreateShortUrlRequest :> Post '[JSON] ShortUrlResponse
   :<|> "api" :> "urls" :> Capture "shortCode" Text :> Get '[JSON] ShortUrlResponse
   :<|> "api" :> "qrcode" :> Capture "shortCode" Text :> QueryParam "size" Int :> Get '[OctetStream] ByteString
-  :<|> Capture "shortCode" Text :> Get '[JSON] (Headers '[Header "Location" Text] NoContent)
+  :<|> Capture "shortCode" Text :> Verb 'GET 301 '[JSON] (Headers '[Header "Location" Text] NoContent)
 
 -- Convert AppAction to Servant Handler
 appActionToHandler :: AppEnv -> Request -> AppAction a -> Handler a
