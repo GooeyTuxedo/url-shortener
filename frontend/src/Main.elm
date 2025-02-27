@@ -1,8 +1,9 @@
-module Main exposing (main)
+module Main exposing (main, update)
 
 import Api
 import Browser
 import Browser.Navigation as Nav
+import TestableNavigation
 import Element exposing (..)
 import Html exposing (Html)
 import Http
@@ -53,7 +54,7 @@ init flags url key =
             , notification = Nothing
             , isLoading = False
             , errorMessage = Nothing
-            , navKey = key
+            , navKey = TestableNavigation.fromReal key
             }
     in
     ( model
@@ -110,12 +111,12 @@ update msg model =
             case urlRequest of
                 Browser.Internal url ->
                     ( model
-                    , Nav.pushUrl model.navKey (Url.toString url)
+                    , TestableNavigation.pushUrl model.navKey (Url.toString url)
                     )
 
                 Browser.External href ->
                     ( model
-                    , Nav.load href
+                    , TestableNavigation.load href
                     )
 
         WindowResized width ->
@@ -267,7 +268,7 @@ update msg model =
 
         NavigateTo path ->
             ( model
-            , Nav.pushUrl model.navKey path
+            , TestableNavigation.pushUrl model.navKey path
             )
 
         ShowNotification message notificationType ->

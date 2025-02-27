@@ -1,4 +1,4 @@
-module Api exposing (createShortUrl, getShortUrl, getShortUrls)
+module Api exposing (createShortUrl, getShortUrl, getShortUrls, encodeCreateShortUrlRequest, apiUrl)
 
 import Http
 import Json.Decode as Decode exposing (Decoder)

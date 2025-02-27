@@ -1,6 +1,6 @@
 module Types exposing (..)
 
-import Browser.Navigation exposing (Key)
+import TestableNavigation
 import Time
 
 
@@ -38,7 +38,7 @@ type alias Model =
     , notification : Maybe Notification
     , isLoading : Bool
     , errorMessage : Maybe String
-    , navKey : Key
+    , navKey : TestableNavigation.Key
     }
 
 

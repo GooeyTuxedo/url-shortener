@@ -1,4 +1,4 @@
-module View.Shortener exposing (viewShortener, viewResult)
+module View.Shortener exposing (viewShortener, viewResult, viewShortenForm)
 
 import Element exposing (..)
 import Element.Background as Background

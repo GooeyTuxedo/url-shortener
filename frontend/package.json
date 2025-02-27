@@ -6,7 +6,9 @@
   "scripts": {
     "start": "parcel index.html",
     "build": "parcel build index.html --public-url ./",
-    "test": "elm-test"
+    "test": "elm-test",
+    "test:watch": "elm-test --watch",
+    "test:ci": "elm-test --report=json"
   },
   "keywords": [
     "elm",
