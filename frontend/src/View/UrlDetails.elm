@@ -18,9 +18,11 @@ viewUrlDetails model shortCode =
             Just url ->
                 if url.shortCode == shortCode then
                     viewUrlDetailsContent url
+
                 else
                     -- If the loaded URL doesn't match the requested shortCode
                     loadingOrError model shortCode
+
             Nothing ->
                 loadingOrError model shortCode
 
@@ -38,6 +40,7 @@ loadingOrError model shortCode =
                 , Font.size 24
                 ]
                 (text "Loading...")
+
           else
             column
                 [ centerX
@@ -141,11 +144,14 @@ viewUrlStats url =
             [ viewStatRow "Short URL" (text url.shortUrl) True
             , viewStatRow "Original URL" (paragraph [] [ text url.originalUrl ]) False
             , viewStatRow "Created" (text (formatDate url.createdAt)) False
-            , viewStatRow "Expires" 
+            , viewStatRow "Expires"
                 (case url.expiresAt of
-                    Just date -> text (formatDate date)
-                    Nothing -> text "Never"
-                ) 
+                    Just date ->
+                        text (formatDate date)
+
+                    Nothing ->
+                        text "Never"
+                )
                 False
             , viewStatRow "Clicks" (text (String.fromInt url.clickCount)) False
             ]
@@ -179,19 +185,37 @@ viewStatRow label content isHighlighted =
         [ width fill
         , padding 12
         , Border.rounded 6
-        , Background.color (if isHighlighted then rgb255 240 248 255 else rgb 1 1 1)
-        , Border.width (if isHighlighted then 1 else 0)
+        , Background.color
+            (if isHighlighted then
+                rgb255 240 248 255
+
+             else
+                rgb 1 1 1
+            )
+        , Border.width
+            (if isHighlighted then
+                1
+
+             else
+                0
+            )
         , Border.color (rgba 0 0 0 0.1)
         ]
-        [ el 
+        [ el
             [ Font.bold
-            , width (px 150) 
-            ] 
+            , width (px 150)
+            ]
             (text label)
-        , el 
-            [ Font.color (if isHighlighted then rgb255 52 152 219 else rgb255 127 140 141)
-            , width fill 
-            ] 
+        , el
+            [ Font.color
+                (if isHighlighted then
+                    rgb255 52 152 219
+
+                 else
+                    rgb255 127 140 141
+                )
+            , width fill
+            ]
             content
         ]
 
@@ -256,4 +280,8 @@ viewQrCode url =
 formatDate : Time.Posix -> String
 formatDate time =
     -- This is a placeholder. In a real app, use a proper date formatting library
-    "2025-01-01" -- Replace with actual date formatting logic
+    "2025-01-01"
+
+
+
+-- Replace with actual date formatting logic

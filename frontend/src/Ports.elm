@@ -9,6 +9,7 @@ port module Ports exposing
 import Types exposing (ClipboardStatus, QrCodeDownloadStatus)
 
 
+
 -- Outgoing ports (Elm to JS)
 
 
@@ -16,6 +17,7 @@ port copyToClipboard : String -> Cmd msg
 
 
 port downloadQrCode : { url : String, filename : String } -> Cmd msg
+
 
 
 -- Incoming ports (JS to Elm)

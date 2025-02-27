@@ -3,22 +3,21 @@ module Main exposing (main, update)
 import Api
 import Browser
 import Browser.Navigation as Nav
-import TestableNavigation
 import Element exposing (..)
 import Html exposing (Html)
 import Http
 import Msg exposing (Msg(..))
+import Ports exposing (clipboardStatus, qrCodeDownloaded, windowResize)
 import Process
 import Route
 import Task
+import TestableNavigation
 import Time
 import Types exposing (..)
 import Url
-
 import View.Home
 import View.NotFound
 import View.UrlDetails
-import Ports exposing (clipboardStatus, qrCodeDownloaded, windowResize)
 
 
 main : Program Flags Model Msg
@@ -167,6 +166,7 @@ update msg model =
                 ( { model | notification = Just { message = "Please enter a URL", notificationType = Error } }
                 , Cmd.batch [ Task.perform (\_ -> DismissNotification) (Process.sleep 3000) ]
                 )
+
             else
                 let
                     request =
@@ -174,6 +174,7 @@ update msg model =
                         , customAlias =
                             if model.shortenForm.useCustomAlias && not (String.isEmpty model.shortenForm.customAlias) then
                                 Just model.shortenForm.customAlias
+
                             else
                                 Nothing
                         , expiresIn = model.shortenForm.expiresIn
@@ -291,6 +292,7 @@ update msg model =
                   }
                 , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                 )
+
             else
                 ( { model
                     | notification = Just { message = "Failed to copy to clipboard", notificationType = Error }
@@ -310,13 +312,14 @@ update msg model =
                   }
                 , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                 )
+
             else
                 ( { model
                     | notification = Just { message = "Failed to download QR code", notificationType = Error }
                   }
                 , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
                 )
-                
+
         TimeReceived time ->
             ( model, Cmd.none )
 

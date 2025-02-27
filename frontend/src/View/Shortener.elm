@@ -1,4 +1,4 @@
-module View.Shortener exposing (viewShortener, viewResult, viewShortenForm)
+module View.Shortener exposing (viewResult, viewShortenForm, viewShortener)
 
 import Element exposing (..)
 import Element.Background as Background
@@ -117,7 +117,15 @@ viewShortenForm form isLoading =
             , mouseOver
                 [ Background.color (rgb255 41 128 185) ]
             , htmlAttribute (Html.Attributes.disabled isLoading)
-            , htmlAttribute (Html.Attributes.style "cursor" (if isLoading then "wait" else "pointer"))
+            , htmlAttribute
+                (Html.Attributes.style "cursor"
+                    (if isLoading then
+                        "wait"
+
+                     else
+                        "pointer"
+                    )
+                )
             ]
             { onPress = Just SubmitForm
             , label =

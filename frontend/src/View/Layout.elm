@@ -1,11 +1,11 @@
-module View.Layout exposing (layout, viewHeader, viewFooter, viewNotification)
+module View.Layout exposing (layout, viewFooter, viewHeader, viewNotification)
 
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Events exposing (onClick)
 import Element.Font as Font
 import Element.Region as Region
-import Element.Events exposing (onClick)
 import Html.Attributes
 import Msg exposing (Msg(..))
 import Route exposing (Route(..))

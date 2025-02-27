@@ -1,4 +1,4 @@
-module Api exposing (createShortUrl, getShortUrl, getShortUrls, encodeCreateShortUrlRequest, apiUrl)
+module Api exposing (apiUrl, createShortUrl, encodeCreateShortUrlRequest, getShortUrl, getShortUrls)
 
 import Http
 import Json.Decode as Decode exposing (Decoder)
@@ -9,12 +9,14 @@ import Types exposing (CreateShortUrlRequest, ShortUrl)
 import Url.Builder as UrlBuilder
 
 
+
 -- API URLs
 
 
 apiUrl : String -> String -> List UrlBuilder.QueryParameter -> String
 apiUrl baseUrl path queryParams =
     UrlBuilder.crossOrigin baseUrl ("api" :: path :: []) queryParams
+
 
 
 -- JSON Decoders
@@ -53,6 +55,7 @@ iso8601StringToPosix str =
     Ok (Time.millisToPosix 0)
 
 
+
 -- JSON Encoders
 
 
@@ -77,6 +80,7 @@ encodeCreateShortUrlRequest request =
                     Encode.null
           )
         ]
+
 
 
 -- API Requests
