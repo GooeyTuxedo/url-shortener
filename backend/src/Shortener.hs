@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Shortener
     ( generateShortCode
     , isValidShortCode
