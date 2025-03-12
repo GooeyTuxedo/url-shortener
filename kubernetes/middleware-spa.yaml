@@ -1,0 +1,13 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: url-shortener-spa
+  namespace: url-shortener
+spec:
+  errors:
+    status:
+      - "404"
+    service:
+      name: url-shortener-frontend
+      port: 80
+    query: "/{path:.*}"

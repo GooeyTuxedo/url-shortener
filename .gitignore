@@ -4,3 +4,5 @@ dist/
 .cache/
 
 .stack-work/
+
+secret*.yaml
