@@ -18,6 +18,14 @@ COPY test/ ./test/
 # Build the application with optimizations for production
 RUN stack build --ghc-options="-O2"
 
+# Diagnostic: Print information about where the executable is located
+RUN echo "Stack local install root:" && \
+    stack path --local-install-root && \
+    echo "Finding executable location:" && \
+    find $(stack path --local-install-root) -name url-shortener-exe -type f && \
+    echo "Finding executable in .stack-work:" && \
+    find .stack-work -name url-shortener-exe -type f
+
 # Create a smaller runtime image
 FROM debian:bullseye-slim
 
@@ -32,7 +40,8 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Copy the binary from builder stage
-COPY --from=builder /root/.local/bin/url-shortener-exe .
+# This will be updated once we determine the correct path
+COPY --from=builder /app/.stack-work/dist/*/build/url-shortener-exe/url-shortener-exe .
 
 # Create a non-root user to run the application
 RUN useradd -m appuser && \
