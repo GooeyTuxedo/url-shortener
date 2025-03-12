@@ -15,13 +15,13 @@ COPY app/ ./app/
 COPY src/ ./src/
 COPY test/ ./test/
 
-# Build the application
-RUN stack build
+# Build the application with optimizations for production
+RUN stack build --ghc-options="-O2"
 
 # Create a smaller runtime image
-FROM debian:bullseye-slim AS runtime
+FROM debian:bullseye-slim
 
-# Install required system libraries
+# Install required system libraries and cleanup in one layer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libpq-dev \
@@ -32,12 +32,23 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Copy the binary from builder stage
-COPY --from=builder /app/.stack-work/dist/*/build/url-shortener-exe/url-shortener-exe .
+COPY --from=builder /root/.local/bin/url-shortener-exe .
 
-# Set environment variables
+# Create a non-root user to run the application
+RUN useradd -m appuser && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Set environment variables (these will be overridden in Kubernetes)
 ENV PORT=8080
 
 EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Run the application
 CMD ["/app/url-shortener-exe"]
