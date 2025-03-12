@@ -14,23 +14,23 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
+  REPO_NAME: ${{ github.repository }}
 
 jobs:
   # test:
   #   runs-on: ubuntu-latest
   #   steps:
   #     - name: Checkout code
-  #       uses: actions/checkout@v3
+  #       uses: actions/checkout@v4
 
   #     - name: Set up Haskell
-  #       uses: haskell/actions/setup@v2
+  #       uses: haskell-actions/setup@v2
   #       with:
   #         ghc-version: '9.2.8'
   #         enable-stack: true
 
   #     - name: Cache Haskell dependencies
-  #       uses: actions/cache@v3
+  #       uses: actions/cache@v4
   #       with:
   #         path: |
   #           ~/.stack
@@ -53,18 +53,23 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Log in to container registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+          
+      # Set lowercase repository name for Docker
+      - name: Set lowercase repository name
+        run: |
+          echo "BACKEND_IMAGE_NAME=$(echo ${{ env.REPO_NAME }} | tr '[:upper:]' '[:lower:]')-backend" >> $GITHUB_ENV
 
       - name: Extract metadata for Docker
         id: meta-backend
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
           tags: |
@@ -73,10 +78,10 @@ jobs:
             latest
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push backend image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: ./backend
           file: ./backend/Dockerfile
