@@ -128,7 +128,7 @@ viewFooter =
             [ text "© 2025 URL Shortener"
             , el [ width fill ] none
             , row [ spacing 15 ]
-                [ link [] { url = "https://github.com/yourusername/url-shortener", label = text "GitHub" }
+                [ link [] { url = "https://github.com/GooeyTuxedo/url-shortener", label = text "GitHub" }
                 ]
             ]
         ]
