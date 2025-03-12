@@ -4,23 +4,20 @@ metadata:
   name: url-shortener
   namespace: argo
   annotations:
-    # Define which images to track and update
-    argocd-image-updater.argoproj.io/image-list: ghcr.io/gooeytuxedo/url-shortener-backend:~v,ghcr.io/gooeytuxedo/url-shortener-frontend:~v
+    # Define image aliases for easier reference
+    argocd-image-updater.argoproj.io/image-list: backend=ghcr.io/gooeytuxedo/url-shortener-backend:~v,frontend=ghcr.io/gooeytuxedo/url-shortener-frontend:~v
     
-    # Set update strategy to semver (will use semantic versioning for tags)
-    argocd-image-updater.argoproj.io/ghcr.io/gooeytuxedo/url-shortener-backend.update-strategy: semver
-    argocd-image-updater.argoproj.io/ghcr.io/gooeytuxedo/url-shortener-frontend.update-strategy: semver
+    # Backend image configuration
+    argocd-image-updater.argoproj.io/backend.update-strategy: semver
+    argocd-image-updater.argoproj.io/backend.tag-match: regexp:^v?(.*)$
+    argocd-image-updater.argoproj.io/backend.image-name: ghcr.io/gooeytuxedo/url-shortener-backend
+    argocd-image-updater.argoproj.io/backend.kubernetes.deployment-name: url-shortener-backend
     
-    # Allow using tags like v1.2.3 or other tag formats
-    argocd-image-updater.argoproj.io/ghcr.io/gooeytuxedo/url-shortener-backend.tag-match: regexp:^v?(.*)$
-    argocd-image-updater.argoproj.io/ghcr.io/gooeytuxedo/url-shortener-frontend.tag-match: regexp:^v?(.*)$
-    
-    # Specify which k8s objects contain the image specifications
-    argocd-image-updater.argoproj.io/ghcr.io/gooeytuxedo/url-shortener-backend.image-name: ghcr.io/gooeytuxedo/url-shortener-backend
-    argocd-image-updater.argoproj.io/ghcr.io/gooeytuxedo/url-shortener-backend.kubernetes.deployment-name: url-shortener-backend
-    
-    argocd-image-updater.argoproj.io/ghcr.io/gooeytuxedo/url-shortener-frontend.image-name: ghcr.io/gooeytuxedo/url-shortener-frontend
-    argocd-image-updater.argoproj.io/ghcr.io/gooeytuxedo/url-shortener-frontend.kubernetes.deployment-name: url-shortener-frontend
+    # Frontend image configuration
+    argocd-image-updater.argoproj.io/frontend.update-strategy: semver
+    argocd-image-updater.argoproj.io/frontend.tag-match: regexp:^v?(.*)$
+    argocd-image-updater.argoproj.io/frontend.image-name: ghcr.io/gooeytuxedo/url-shortener-frontend
+    argocd-image-updater.argoproj.io/frontend.kubernetes.deployment-name: url-shortener-frontend
     
     # Write changes back to Git (GitOps way)
     argocd-image-updater.argoproj.io/write-back-method: git
