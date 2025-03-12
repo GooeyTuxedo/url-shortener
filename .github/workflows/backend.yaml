@@ -17,31 +17,31 @@ env:
   REPO_NAME: ${{ github.repository }}
 
 jobs:
-  # test:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  #     - name: Set up Haskell
-  #       uses: haskell-actions/setup@v2
-  #       with:
-  #         ghc-version: '9.2.8'
-  #         enable-stack: true
+      - name: Set up Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.2.8'
+          enable-stack: true
 
-  #     - name: Cache Haskell dependencies
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ~/.stack
-  #           backend/.stack-work
-  #         key: ${{ runner.os }}-stack-${{ hashFiles('backend/stack.yaml', 'backend/package.yaml') }}
-  #         restore-keys: |
-  #           ${{ runner.os }}-stack-
+      - name: Cache Haskell dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            backend/.stack-work
+          key: ${{ runner.os }}-stack-${{ hashFiles('backend/stack.yaml', 'backend/package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-
 
-  #     - name: Run backend tests
-  #       working-directory: ./backend
-  #       run: stack test
+      - name: Run backend tests
+        working-directory: ./backend
+        run: stack test
 
   build-and-push:
     # needs: test
