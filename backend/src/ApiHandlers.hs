@@ -8,11 +8,13 @@ module ApiHandlers
     , getUrlInfoHandler
     , generateQRCodeHandler
     , redirectHandler
+    , healthHandler
     ) where
 
 import AbuseProtection (isUrlSafe)
 import AppEnv
 import Config (AppConfig(..))
+import Control.Exception (try, SomeException)
 import Control.Monad (unless)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -25,7 +27,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time (UTCTime, addUTCTime, getCurrentTime)
 import Database.Persist ((==.), Entity(..), get, insert, selectFirst, update, updateGet, (+=.))
-import Database.Persist.Sql (SqlBackend, runSqlPool)
+import Database.Persist.Sql (SqlBackend, runSqlPool, rawSql, Single(..))
 import IPUtils (getClientIP, ClientIP(..))
 import Models
 import Network.HTTP.Types (status301, status404)
@@ -185,3 +187,32 @@ redirectHandler req shortCode = do
             
         Nothing -> 
             throwAppError $ ResourceNotFound "Short URL not found"
+
+-- Handler to check application health
+healthHandler :: AppAction HealthResponse
+healthHandler = do
+    -- Get environment
+    env <- ask
+    let config = envConfig env
+        pool = envPool env
+    
+    -- Check database connection with a simple query
+    dbStatus <- liftIO $ checkDatabaseConnection pool
+    
+    -- Get current time
+    now <- liftIO getCurrentTime
+    
+    -- Return health status
+    if dbStatus
+        then return $ HealthResponse "healthy" "1.0.0" now
+        else throwAppError $ GeneralError "Database connection failed"
+
+-- Helper function to check database connection
+checkDatabaseConnection :: Pool SqlBackend -> IO Bool
+checkDatabaseConnection pool = do
+    -- Try a simple query to check the database connection
+    result <- try $ runSqlPool (rawSql "SELECT 1" []) pool :: IO (Either SomeException [Single Int])
+    case result of
+        Left _ -> return False
+        Right [Single 1] -> return True
+        Right _ -> return False

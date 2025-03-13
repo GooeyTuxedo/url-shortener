@@ -32,6 +32,7 @@ type API =
        "api" :> "shorten" :> ReqBody '[JSON] CreateShortUrlRequest :> Post '[JSON] ShortUrlResponse
   :<|> "api" :> "urls" :> Capture "shortCode" Text :> Get '[JSON] ShortUrlResponse
   :<|> "api" :> "qrcode" :> Capture "shortCode" Text :> QueryParam "size" Int :> Get '[OctetStream] ByteString
+  :<|> "health" :> Get '[JSON] HealthResponse
   :<|> Capture "shortCode" Text :> Verb 'GET 301 '[JSON] (Headers '[Header "Location" Text] NoContent)
 
 -- Convert AppAction to Servant Handler
@@ -68,7 +69,7 @@ testRequest = defaultRequest
 -- API server implementation
 apiServer :: AppEnv -> Server API
 apiServer env = 
-    shortenUrlApi :<|> getUrlInfoApi :<|> generateQRCodeApi :<|> redirectApi
+    shortenUrlApi :<|> getUrlInfoApi :<|> generateQRCodeApi :<|> healthApi :<|> redirectApi
   where
     -- Each handler adapted to the right Servant type
     
@@ -87,6 +88,9 @@ apiServer env =
     redirectApi :: Text -> Handler (Headers '[Header "Location" Text] NoContent)
     redirectApi shortCode = 
         appActionToHandler env testRequest (redirectHandler testRequest shortCode)
+
+    healthApi :: Handler HealthResponse
+    healthApi = appActionToHandler env testRequest healthHandler
 
 -- Create a Servant application from our API
 apiHandler :: AppEnv -> Application

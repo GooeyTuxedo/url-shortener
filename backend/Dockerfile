@@ -19,7 +19,7 @@ COPY test/ ./test/
 RUN stack build --ghc-options="-O2"
 
 # # Create a smaller runtime image
-# FROM debian:bullseye-slim
+# FROM debian:bullseye-slim AS runtime
 
 # # Install required system libraries and cleanup in one layer
 # RUN apt-get update && \
@@ -51,4 +51,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Run the application
-CMD ["stack run"]
+CMD ["/app/.stack-work/dist/x86_64-linux/ghc-9.2.8/build/url-shortener-exe/url-shortener-exe"]

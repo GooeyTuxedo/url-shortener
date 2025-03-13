@@ -65,6 +65,15 @@ data ErrorResponse = ErrorResponse
 instance FromJSON ErrorResponse
 instance ToJSON ErrorResponse
 
+data HealthResponse = HealthResponse
+    { status :: Text
+    , version :: Text
+    , timestamp :: UTCTime
+    } deriving (Show, Eq, Generic)
+
+instance FromJSON HealthResponse
+instance ToJSON HealthResponse
+
 -- Convert database model to API response
 toShortUrlResponse :: Text -> ShortUrl -> ShortUrlResponse
 toShortUrlResponse baseUrl shortUrl = ShortUrlResponse
