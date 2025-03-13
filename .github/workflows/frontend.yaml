@@ -87,6 +87,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:buildcache,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+            API_URL=https://short.based.consulting
 
       - name: Log image info
         if: success()

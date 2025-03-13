@@ -3,6 +3,12 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Set ARG for build-time env variables
+ARG API_URL=http://localhost:8080
+
+# Make environment variables available during build
+ENV ELM_APP_API_URL=$API_URL
+
 # Install dependencies
 COPY package.json package-lock.json* ./
 RUN npm ci

@@ -23,9 +23,6 @@ spec:
         image: ghcr.io/gooeytuxedo/url-shortener-frontend:latest
         ports:
         - containerPort: 80
-        env:
-        - name: ELM_APP_API_URL
-          value: "/api"
         resources:
           limits:
             cpu: "200m"

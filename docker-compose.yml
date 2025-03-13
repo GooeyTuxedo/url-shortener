@@ -3,19 +3,18 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - API_URL=http://localhost:8080
     ports:
-      - "1234:1234"
+      - "1234:80"
     volumes:
       - /app/node_modules
-    environment:
-      - ELM_APP_API_URL=http://localhost:8080
     depends_on:
       - backend
 
   backend:
     build:
       context: ./backend
-      target: builder
     volumes:
       - stack-data:/root/.stack
     ports:
@@ -34,7 +33,6 @@ services:
       - RATE_LIMIT_WINDOW=60
       - MAX_URL_LENGTH=2048
       - ENABLE_ABUSE_PREVENTION=true
-    command: stack run
 
   db:
     image: postgres:15
