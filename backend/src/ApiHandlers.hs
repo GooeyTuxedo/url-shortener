@@ -9,6 +9,7 @@ module ApiHandlers
     , generateQRCodeHandler
     , redirectHandler
     , healthHandler
+    , getUrlsForClientHandler
     ) where
 
 import AbuseProtection (isUrlSafe)
@@ -26,7 +27,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Time (UTCTime, addUTCTime, getCurrentTime)
-import Database.Persist ((==.), Entity(..), get, insert, selectFirst, update, updateGet, (+=.))
+import Database.Persist ((==.), Entity(..), get, insert, selectFirst, selectList, update, updateGet, (+=.))
 import Database.Persist.Sql (SqlBackend, runSqlPool, rawSql, Single(..))
 import IPUtils (getClientIP, ClientIP(..))
 import Models
@@ -39,8 +40,8 @@ import Shortener (generateShortCode, isValidShortCode)
 import Utils (validateUrlSafe)
 
 -- Handler to create a new short URL
-shortenUrlHandler :: Request -> CreateShortUrlRequest -> AppAction ShortUrlResponse
-shortenUrlHandler req CreateShortUrlRequest{..} = do
+shortenUrlHandler :: Request -> ClientId -> CreateShortUrlRequest -> AppAction ShortUrlResponse
+shortenUrlHandler req clientId CreateShortUrlRequest{..} = do
     -- Get environment
     env <- ask
     let config = envConfig env
@@ -81,9 +82,9 @@ shortenUrlHandler req CreateShortUrlRequest{..} = do
         Just _ -> throwAppError $ ValidationError "Invalid custom alias format"
         Nothing -> liftIO $ generateShortCode (shortCodeLength config)
     
-    -- Create new short URL in database
+    -- Create new short URL in database with client ID
     shortUrlId <- liftIO $ runSqlPool 
-        (insert $ ShortUrl validUrl shortCode now (Just expiryTime) 0)
+        (insert $ ShortUrl validUrl shortCode now (Just expiryTime) 0 clientId)
         pool
     
     -- Retrieve the created entity
@@ -96,8 +97,8 @@ shortenUrlHandler req CreateShortUrlRequest{..} = do
         Nothing -> throwAppError $ DatabaseError "Failed to create short URL"
 
 -- Handler to get information about a short URL
-getUrlInfoHandler :: Text -> AppAction ShortUrlResponse
-getUrlInfoHandler shortCode = do
+getUrlInfoHandler :: Text -> Maybe ClientId -> AppAction ShortUrlResponse
+getUrlInfoHandler shortCode mClientId = do
     -- Get environment
     env <- ask
     let config = envConfig env
@@ -110,9 +111,32 @@ getUrlInfoHandler shortCode = do
     
     case result of
         Just (Entity _ shortUrl) -> 
-            return $ toShortUrlResponse (baseUrl config) shortUrl
+            -- If clientId is provided, check URL ownership
+            case mClientId of
+                Just clientId -> 
+                    if shortUrlClientId shortUrl == clientId || clientId == "admin"
+                        then return $ toShortUrlResponse (baseUrl config) shortUrl
+                        else throwAppError $ SecurityError "You don't have permission to view this URL"
+                Nothing -> 
+                    -- Public access without client ID is allowed
+                    return $ toShortUrlResponse (baseUrl config) shortUrl
         Nothing -> 
             throwAppError $ ResourceNotFound "Short URL not found"
+
+getUrlsForClientHandler :: ClientId -> AppAction [ShortUrlResponse]
+getUrlsForClientHandler clientId = do
+    -- Get environment
+    env <- ask
+    let config = envConfig env
+        pool = envPool env
+    
+    -- Find all short URLs for this client
+    results <- liftIO $ runSqlPool 
+        (selectList [ShortUrlClientId ==. clientId] [])
+        pool
+    
+    -- Convert to response format
+    return $ map (\(Entity _ url) -> toShortUrlResponse (baseUrl config) url) results
 
 -- Handler to generate QR code for a short URL
 generateQRCodeHandler :: Request -> Text -> Maybe Int -> AppAction ByteString

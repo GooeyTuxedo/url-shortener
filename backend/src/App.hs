@@ -15,7 +15,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8)
 import Database.Persist.Postgresql (ConnectionString, SqlBackend, createPostgresqlPool, runMigration, runSqlPool)
-import Models (migrateAll)
+import Models (ShortUrl, migrateAll, migrateClientId)
 import Network.Wai.Handler.Warp (Port, run)
 import Network.Wai.Middleware.Cors (simpleCors)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
@@ -50,6 +50,7 @@ createConnectionString DatabaseConfig{..} =
 runMigrations :: Pool SqlBackend -> IO ()
 runMigrations pool = do
     runSqlPool (runMigration migrateAll) pool
+    migrateClientId pool
 
 -- Start the web server with the given configuration
 startApp :: AppConfig -> Pool SqlBackend -> IO ()

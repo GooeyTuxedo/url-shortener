@@ -16,10 +16,13 @@
 
 module Models where
 
+import Control.Exception (try, SomeException)
+import Control.Monad (forM_)
 import Data.Aeson (FromJSON, ToJSON)
+import Data.Pool (Pool)
 import Data.Text (Text)
 import Data.Time (UTCTime)
-import Database.Persist.Postgresql (ConnectionPool, SqlBackend, runSqlPool)
+import Database.Persist.Postgresql ((==.), (=.), ConnectionPool, Entity(..), SelectOpt(LimitTo), SqlBackend, update, selectList, runSqlPool)
 import Database.Persist.TH
 import GHC.Generics (Generic)
 
@@ -31,9 +34,39 @@ ShortUrl
     createdAt UTCTime
     expiresAt UTCTime Maybe
     clickCount Int default=0
+    clientId Text
     UniqueShortCode shortCode
     deriving Show Eq
 |]
+
+migrateClientId :: Pool SqlBackend -> IO ()
+migrateClientId pool = do
+    -- Check if the column exists (simplified check - in practice, you may want to use a proper migration framework)
+    putStrLn "Checking if clientId migration is needed..."
+    
+    -- Try to run a query using the new column
+    result <- try $ runSqlPool 
+        (selectList [ShortUrlClientId ==. "test"] [LimitTo 1]) 
+        pool :: IO (Either SomeException [Entity ShortUrl])
+        
+    case result of
+        -- If the query succeeds, the column exists
+        Right _ -> putStrLn "ClientId column already exists."
+        
+        -- If we get an error, assume the column doesn't exist and we need to migrate
+        Left _ -> do
+            putStrLn "Migrating existing records to add clientId..."
+            
+            -- Get all existing records
+            records <- runSqlPool (selectList [] []) pool
+            
+            -- For each record, add a default client ID
+            forM_ records $ \(Entity recordId _) -> do
+                runSqlPool 
+                    (update recordId [ShortUrlClientId =. "migrated"])
+                    pool
+                    
+            putStrLn "Migration completed successfully."
 
 -- API request/response types
 data CreateShortUrlRequest = CreateShortUrlRequest
@@ -53,7 +86,10 @@ data ShortUrlResponse = ShortUrlResponse
     , expiresAt :: Maybe UTCTime
     , clickCount :: Int
     , qrCodeUrl :: Text
+    , clientId :: Text
     } deriving (Show, Eq, Generic)
+
+type ClientId = Text
 
 instance FromJSON ShortUrlResponse
 instance ToJSON ShortUrlResponse
@@ -84,6 +120,7 @@ toShortUrlResponse baseUrl shortUrl = ShortUrlResponse
     , expiresAt = shortUrlExpiresAt shortUrl
     , clickCount = shortUrlClickCount shortUrl
     , qrCodeUrl = baseUrl <> "/api/qrcode/" <> shortCode
+    , clientId = shortUrlClientId shortUrl
     }
   where
     shortCode = shortUrlShortCode shortUrl

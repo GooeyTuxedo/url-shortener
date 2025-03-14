@@ -15,7 +15,8 @@ import Control.Monad.Reader (ask)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as LBS 
+import qualified Data.ByteString.Lazy as LBS
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -28,9 +29,10 @@ import Database.Persist ((==.), Entity(..), selectFirst, update, (+=.))
 import Database.Persist.Sql (runSqlPool)
 
 -- API type definition
-type API = 
-       "api" :> "shorten" :> ReqBody '[JSON] CreateShortUrlRequest :> Post '[JSON] ShortUrlResponse
-  :<|> "api" :> "urls" :> Capture "shortCode" Text :> Get '[JSON] ShortUrlResponse
+type API =
+       "api" :> "shorten" :> QueryParam "clientId" ClientId :> ReqBody '[JSON] CreateShortUrlRequest :> Post '[JSON] ShortUrlResponse
+  :<|> "api" :> "urls" :> QueryParam "clientId" ClientId :> Get '[JSON] [ShortUrlResponse]
+  :<|> "api" :> "urls" :> Capture "shortCode" Text :> QueryParam "clientId" ClientId :> Get '[JSON] ShortUrlResponse
   :<|> "api" :> "qrcode" :> Capture "shortCode" Text :> QueryParam "size" Int :> Get '[OctetStream] ByteString
   :<|> "health" :> Get '[JSON] HealthResponse
   :<|> Capture "shortCode" Text :> Verb 'GET 301 '[JSON] (Headers '[Header "Location" Text] NoContent)
@@ -44,22 +46,22 @@ appActionToHandler env req action = do
         Right val -> return val
   where
     throwServantError :: AppError -> Handler a
-    throwServantError (DatabaseError msg) = 
+    throwServantError (DatabaseError msg) =
         throwError err500 { errBody = LBS.fromStrict $ TE.encodeUtf8 $ "Database error: " <> msg }
-    throwServantError (ValidationError msg) = 
+    throwServantError (ValidationError msg) =
         throwError err400 { errBody = LBS.fromStrict $ TE.encodeUtf8 $ "Validation error: " <> msg }
-    throwServantError RateLimitError = 
-        throwError $ ServerError 
+    throwServantError RateLimitError =
+        throwError $ ServerError
             { errHTTPCode = 429
             , errReasonPhrase = "Too Many Requests"
             , errBody = "Rate limit exceeded. Please try again later."
             , errHeaders = []
             }
-    throwServantError (ResourceNotFound msg) = 
+    throwServantError (ResourceNotFound msg) =
         throwError err404 { errBody = LBS.fromStrict $ TE.encodeUtf8 $ "Not found: " <> msg }
-    throwServantError (SecurityError msg) = 
+    throwServantError (SecurityError msg) =
         throwError err403 { errBody = LBS.fromStrict $ TE.encodeUtf8 $ "Security error: " <> msg }
-    throwServantError (GeneralError msg) = 
+    throwServantError (GeneralError msg) =
         throwError err500 { errBody = LBS.fromStrict $ TE.encodeUtf8 $ "General error: " <> msg }
 
 -- A proper request that can be used in tests
@@ -68,29 +70,38 @@ testRequest = defaultRequest
 
 -- API server implementation
 apiServer :: AppEnv -> Server API
-apiServer env = 
-    shortenUrlApi :<|> getUrlInfoApi :<|> generateQRCodeApi :<|> healthApi :<|> redirectApi
+apiServer env =
+    shortenUrlApi :<|> getUrlsForClientApi :<|> getUrlInfoApi :<|> generateQRCodeApi :<|> healthApi :<|> redirectApi
   where
-    -- Each handler adapted to the right Servant type
-    
-    shortenUrlApi :: CreateShortUrlRequest -> Handler ShortUrlResponse
-    shortenUrlApi reqBody = do
-        appActionToHandler env testRequest (shortenUrlHandler testRequest reqBody)
+    shortenUrlApi :: Maybe ClientId -> CreateShortUrlRequest -> Handler ShortUrlResponse
+    shortenUrlApi mClientId reqBody = do
+        -- Use a default client ID if none is provided
+        let clientId = fromMaybe "anonymous" mClientId
+        appActionToHandler env testRequest (shortenUrlHandler testRequest clientId reqBody)
 
-    getUrlInfoApi :: Text -> Handler ShortUrlResponse
-    getUrlInfoApi shortCode = 
-        appActionToHandler env testRequest (getUrlInfoHandler shortCode)
+    getUrlsForClientApi :: Maybe ClientId -> Handler [ShortUrlResponse]
+    getUrlsForClientApi mClientId = do
+        -- Require a client ID for this endpoint
+        case mClientId of
+            Just clientId ->
+                appActionToHandler env testRequest (getUrlsForClientHandler clientId)
+            Nothing ->
+                throwError err400 { errBody = "Missing required query parameter: clientId" }
+
+    getUrlInfoApi :: Text -> Maybe ClientId -> Handler ShortUrlResponse
+    getUrlInfoApi shortCode mClientId =
+        appActionToHandler env testRequest (getUrlInfoHandler shortCode mClientId)
 
     generateQRCodeApi :: Text -> Maybe Int -> Handler ByteString
-    generateQRCodeApi shortCode mSize = 
+    generateQRCodeApi shortCode mSize =
         appActionToHandler env testRequest (generateQRCodeHandler testRequest shortCode mSize)
-
-    redirectApi :: Text -> Handler (Headers '[Header "Location" Text] NoContent)
-    redirectApi shortCode = 
-        appActionToHandler env testRequest (redirectHandler testRequest shortCode)
 
     healthApi :: Handler HealthResponse
     healthApi = appActionToHandler env testRequest healthHandler
+
+    redirectApi :: Text -> Handler (Headers '[Header "Location" Text] NoContent)
+    redirectApi shortCode =
+        appActionToHandler env testRequest (redirectHandler testRequest shortCode)
 
 -- Create a Servant application from our API
 apiHandler :: AppEnv -> Application
