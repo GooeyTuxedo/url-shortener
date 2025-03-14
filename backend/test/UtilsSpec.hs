@@ -17,15 +17,15 @@ spec = do
         validateUrl (T.pack "https://example.com/path") `shouldSatisfy` isRight
         validateUrl (T.pack "https://subdomain.example.com") `shouldSatisfy` isRight
         validateUrl (T.pack "http://example.com/path?query=param") `shouldSatisfy` isRight
-        
+
       it "rejects invalid URLs" $ do
         validateUrl (T.pack "not-a-url") `shouldSatisfy` isLeft
         validateUrl (T.pack "ftp://example.com") `shouldSatisfy` isLeft
         validateUrl (T.pack "http:example.com") `shouldSatisfy` isLeft
-        
+
       it "rejects URLs that are too long" $ do
         validateUrl (T.replicate 3000 (T.pack "a")) `shouldSatisfy` isLeft
-        
+
       it "requires http or https protocol" $ do
         let result = validateUrl (T.pack "example.com")
         result `shouldSatisfy` isLeft
@@ -35,12 +35,12 @@ spec = do
 
     describe "sanitizeUrl" $ do
       it "keeps URLs with http:// or https:// unchanged" $ do
-        sanitizeUrl (T.pack "http://example.com") `shouldBe` (T.pack "http://example.com")
-        sanitizeUrl (T.pack "https://example.com") `shouldBe` (T.pack "https://example.com")
-        
+        sanitizeUrl (T.pack "http://example.com") `shouldBe` T.pack "http://example.com"
+        sanitizeUrl (T.pack "https://example.com") `shouldBe` T.pack "https://example.com"
+
       it "adds https:// to URLs without a protocol" $ do
-        sanitizeUrl (T.pack "example.com") `shouldBe` (T.pack "https://example.com")
-        sanitizeUrl (T.pack "example.com/path") `shouldBe` (T.pack "https://example.com/path")
+        sanitizeUrl (T.pack "example.com") `shouldBe` T.pack "https://example.com"
+        sanitizeUrl (T.pack "example.com/path") `shouldBe` T.pack "https://example.com/path"
 
 -- Helper to check if the error is related to missing protocol
 isMissingProtocolError :: UrlValidationError -> Bool

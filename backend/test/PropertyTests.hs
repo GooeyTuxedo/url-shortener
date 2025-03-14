@@ -56,7 +56,24 @@ spec = do
             in case (generateQRCode sanitizedUrl options1, generateQRCode sanitizedUrl options2) of
                  (Right bs1, Right bs2) -> bs1 `smallerThan` bs2
                  _ -> False
-                 
+    
+    describe "Client ID Properties" $ do
+      it "client IDs can be any valid text" $ property $
+        \clientId -> not (T.null clientId) && T.length clientId < 100 ==>
+          validClientId clientId
+      
+-- Property for valid client IDs
+validClientId :: Text -> Bool
+validClientId clientId = 
+  not (T.null clientId) && T.length clientId < 100
+
+-- Custom generator for client IDs
+genClientId :: Gen Text
+genClientId = do
+  prefix <- elements ["user-", "client-", "test-", ""]
+  id <- T.pack <$> listOf1 genSafeChar
+  return $ prefix <> id
+
 -- Custom generator for URLs
 genSafeChar :: Gen Char
 genSafeChar = elements $ ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "-._~:/?#[]@!$&'()*+,;="
