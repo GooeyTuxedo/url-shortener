@@ -70,7 +70,7 @@ startApp config@AppConfig{..} pool = do
             { blacklistDomains = Set.fromList 
                 [ "malware-site.com", "phishing-example.com" ]
             , blacklistPatterns = Set.fromList 
-                [ "phish", "malware", "exploit", "hack" ]
+                [ "phish", "malware", "exploit" ]
             , blacklistFile = Nothing
             , maxRedirects = 5
             , maxUrlLength = maxUrlLength

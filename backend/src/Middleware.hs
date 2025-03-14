@@ -1,14 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Middleware
-    ( securityHeaders
+    ( optionsMiddleware
+    , securityHeaders
     , rateLimitMiddleware
     ) where
 
 import Network.Wai
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
-import Network.HTTP.Types (status429, hContentType, ResponseHeaders)
+import Network.HTTP.Types (status200, status429, hContentType, methodOptions, ResponseHeaders)
+import Network.HTTP.Types.Header (hContentType, hAuthorization, Header)
 import RateLimiter (RateLimiter, checkRateLimit)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
@@ -49,3 +51,35 @@ getClientId req =
     -- In production, you'd extract IP from X-Forwarded-For or other headers
     -- For simplicity, we'll just use a default
     "client-ip"
+
+-- Middleware to handle OPTIONS preflight requests
+optionsMiddleware :: Middleware
+optionsMiddleware app req respond =
+    if requestMethod req == methodOptions
+    then
+        -- Respond directly to OPTIONS requests with proper CORS headers
+        respond $ responseLBS
+            status200
+            [ ("Access-Control-Allow-Origin", "*")
+            , ("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+            , ("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With")
+            , ("Access-Control-Max-Age", "3600")
+            , (hContentType, "text/plain")
+            ]
+            LBS.empty
+    else
+        -- For non-OPTIONS requests, pass through to the next middleware
+        -- and add CORS headers to the response
+        app req $ \res ->
+            respond $ mapResponseHeaders addCorsHeaders res
+
+-- Add CORS headers to every response
+addCorsHeaders :: [Header] -> [Header]
+addCorsHeaders headers =
+    corsHeaders ++ headers
+  where
+    corsHeaders =
+        [ ("Access-Control-Allow-Origin", "*")
+        , ("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        , ("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With")
+        ]
