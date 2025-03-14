@@ -53,7 +53,7 @@ spec:
   routes:
     # We're capturing all single-segment paths without dots 
     # (not matching static assets which contain dots)
-    - match: Host(`short.based.consulting`) && RegularExpression(`^/[^/.]+$`)
+    - match: Host(`short.based.consulting`) && Path(`/{shortcode:[a-zA-Z0-9]{1,12}}`)
       kind: Rule
       priority: 30
       services:
