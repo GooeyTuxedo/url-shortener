@@ -27,6 +27,8 @@ mockModel =
     , isLoading = False
     , errorMessage = Nothing
     , navKey = TestableNavigation.dummy
+    , clientId = Nothing
+    , tempClientId = ""
     }
 
 -- Create a mock ShortUrl for testing
@@ -39,6 +41,7 @@ mockShortUrl =
     , expiresAt = Nothing
     , clickCount = 0
     , qrCodeUrl = "http://api.example.com/qr/abc123"
+    , clientId = "test-client"
     }
 
 
@@ -151,5 +154,30 @@ suite =
                                 notification
                         Nothing ->
                             Expect.fail "Expected notification to be shown"
+            , test "ClientIdChanged updates tempClientId" <|
+                \_ ->
+                    let
+                        ( newModel, _ ) =
+                            update (ClientIdChanged "new-client-id") mockModel
+                    in
+                    Expect.equal newModel.tempClientId "new-client-id"
+            , test "SaveClientId sets clientId and shows notification" <|
+                \_ ->
+                    let
+                        modelWithTemp = { mockModel | tempClientId = "new-client-id" }
+                        ( newModel, _ ) =
+                            update SaveClientId modelWithTemp
+                    in
+                    Expect.all
+                        [ \m -> Expect.equal m.clientId (Just "new-client-id")
+                        , \m -> Expect.equal m.tempClientId ""
+                        , \m -> 
+                            case m.notification of
+                                Just notification ->
+                                    Expect.equal notification.notificationType Success
+                                Nothing ->
+                                    Expect.fail "Expected success notification"
+                        ]
+                        newModel
             ]
         ]

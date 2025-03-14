@@ -35,6 +35,8 @@ mockModel =
     , isLoading = False
     , errorMessage = Nothing
     , navKey = TestableNavigation.dummy
+    , clientId = Nothing
+    , tempClientId = ""
     }
 
 
@@ -48,6 +50,7 @@ mockShortUrl =
     , expiresAt = Nothing
     , clickCount = 0
     , qrCodeUrl = "http://api.example.com/qr/abc123"
+    , clientId = "test-client"
     }
 
 
@@ -171,5 +174,16 @@ suite =
                         |> elementToHtml
                         |> Query.fromHtml
                         |> Query.has [ Selector.text "Test notification" ]
+            ]
+        , describe "Client ID features"
+            [ test "Layout shows client ID badge when ID is set" <|
+                \_ ->
+                    let
+                        modelWithClientId = { mockModel | clientId = Just "test-client" }
+                    in
+                    View.Layout.viewHeader modelWithClientId
+                        |> elementToHtml
+                        |> Query.fromHtml
+                        |> Query.has [ Selector.text "ID: test-client" ]
             ]
         ]

@@ -117,4 +117,31 @@ suite =
                     in
                     Expect.equal model.windowWidth 768
             ]
+            
+        , describe "Client ID Storage"
+            [ test "ClientIdChanged updates tempClientId" <|
+                \_ ->
+                    let
+                        ( model, _ ) =
+                            update (ClientIdChanged "test-client") mockModel
+                    in
+                    Expect.equal model.tempClientId "test-client"
+                    
+            , test "SaveClientId generates a command" <|
+                \_ ->
+                    let
+                        modelWithTemp = { mockModel | tempClientId = "test-client" }
+                        ( _, cmd ) =
+                            update SaveClientId modelWithTemp
+                    in
+                    Expect.notEqual cmd Cmd.none
+                    
+            , test "StoredClientIdReceived updates clientId" <|
+                \_ ->
+                    let
+                        ( model, _ ) =
+                            update (StoredClientIdReceived "test-client") mockModel
+                    in
+                    Expect.equal model.clientId (Just "test-client")
+            ]
         ]

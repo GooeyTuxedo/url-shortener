@@ -34,6 +34,8 @@ mockModel =
     , isLoading = False
     , errorMessage = Nothing
     , navKey = TestableNavigation.dummy
+    , clientId = Nothing
+    , tempClientId = ""
     }
 
 
@@ -47,6 +49,7 @@ mockShortUrl =
     , expiresAt = Nothing
     , clickCount = 0
     , qrCodeUrl = "http://api.example.com/qr/abc123"
+    , clientId = "test-client"
     }
 
 
@@ -87,6 +90,7 @@ mockModelWithData =
             , mockShortUrlWithClicks
             ]
         , currentUrl = Just mockShortUrl
+        , clientId = Just "test-client"
     }
 
 
