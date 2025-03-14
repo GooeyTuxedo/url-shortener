@@ -39,38 +39,6 @@ ShortUrl
     deriving Show Eq
 |]
 
-migrateClientId :: Pool SqlBackend -> IO ()
-migrateClientId pool = do
-    putStrLn "Starting clientId migration..."
-    
-    -- 1. First add the column as nullable
-    result1 <- try $ runSqlPool 
-        (rawSql "ALTER TABLE \"short_url\" ADD COLUMN \"client_id\" VARCHAR" []) 
-        pool :: IO (Either SomeException [Single Int])
-        
-    case result1 of
-        Left e -> putStrLn $ "Error adding client_id column (might already exist): " ++ show e
-        Right _ -> putStrLn "Added client_id column successfully"
-    
-    -- 2. Update existing records to set a default value
-    result2 <- try $ runSqlPool 
-        (rawSql "UPDATE \"short_url\" SET client_id = 'migrated' WHERE client_id IS NULL" []) 
-        pool :: IO (Either SomeException [Single Int])
-        
-    case result2 of
-        Left e -> putStrLn $ "Error updating existing records: " ++ show e
-        Right _ -> putStrLn "Updated existing records with default client_id"
-    
-    -- 3. Now add the NOT NULL constraint
-    result3 <- try $ runSqlPool 
-        (rawSql "ALTER TABLE \"short_url\" ALTER COLUMN \"client_id\" SET NOT NULL" []) 
-        pool :: IO (Either SomeException [Single Int])
-        
-    case result3 of
-        Left e -> putStrLn $ "Error adding NOT NULL constraint: " ++ show e
-        Right _ -> putStrLn "Added NOT NULL constraint successfully"
-    
-    putStrLn "ClientId migration completed"
 
 -- API request/response types
 data CreateShortUrlRequest = CreateShortUrlRequest
