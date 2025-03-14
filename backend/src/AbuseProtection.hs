@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module AbuseProtection 
+module AbuseProtection
     ( UrlContentFilter
     , newUrlContentFilter
     , isUrlSafe
@@ -46,19 +46,19 @@ newUrlContentFilter config = do
     manager <- newManager $ tlsManagerSettings
         { managerResponseTimeout = responseTimeoutMicro (10 * 1000000)  -- 10 seconds
         }
-    
+
     -- Initialize blacklist
     domainsVar <- newMVar (blacklistDomains config)
     patternsVar <- newMVar (blacklistPatterns config)
-    
+
     -- Load blacklist from file if provided
     case blacklistFile config of
         Just filePath -> do
             loadBlacklistFromFile filePath domainsVar patternsVar
             return ()
-        Nothing -> 
+        Nothing ->
             return ()
-    
+
     return $ UrlContentFilter config manager domainsVar patternsVar
 
 -- Load blacklist from file
@@ -66,10 +66,10 @@ loadBlacklistFromFile :: FilePath -> MVar (Set Text) -> MVar (Set Text) -> IO ()
 loadBlacklistFromFile filePath domainsVar patternsVar = do
     content <- TIO.readFile filePath
     let (domains, patterns) = parseBlacklistFile content
-    
+
     modifyMVar_ domainsVar $ \currentDomains ->
         return $ Set.union currentDomains domains
-        
+
     modifyMVar_ patternsVar $ \currentPatterns ->
         return $ Set.union currentPatterns patterns
 
@@ -78,21 +78,21 @@ loadBlacklistFromFile filePath domainsVar patternsVar = do
 parseBlacklistFile :: Text -> (Set Text, Set Text)
 parseBlacklistFile content =
     let lines = T.lines content
-        isDomain line = T.isPrefixOf "domain:" line
-        isPattern line = T.isPrefixOf "pattern:" line
-        
+        isDomain = T.isPrefixOf "domain:"
+        isPattern = T.isPrefixOf "pattern:"
+
         extractDomain line = if isDomain line
                              then Just $ T.strip $ T.drop 7 line
                              else Nothing
-                             
+
         extractPattern line = if isPattern line
                               then Just $ T.strip $ T.drop 8 line
                               else Nothing
-                              
-        domains = Set.fromList $ 
+
+        domains = Set.fromList $
             [d | Just d <- map extractDomain lines, not (T.null d)]
-            
-        patterns = Set.fromList $ 
+
+        patterns = Set.fromList $
             [p | Just p <- map extractPattern lines, not (T.null p)]
     in
         (domains, patterns)
@@ -103,13 +103,13 @@ isUrlSafe filter url = do
     -- Check URL length
     let urlLen = T.length url
         maxLen = maxUrlLength (filterConfig filter)
-        
+
     if urlLen > maxLen
         then return False
         else do
             -- Extract domain from URL
             let domain = extractDomain url
-            
+
             -- Check domain blacklist
             domains <- readMVar (blacklistDomainsVar filter)
             if domain `Set.member` domains
@@ -117,7 +117,7 @@ isUrlSafe filter url = do
                 else do
                     -- Check pattern blacklist
                     patterns <- readMVar (blacklistPatternsVar filter)
-                    return $ not $ any (\pattern -> T.isInfixOf pattern url) patterns
+                    return $ not $ any (T.isInfixOf url) patterns
 
 -- Extract domain from URL
 extractDomain :: Text -> Text
@@ -136,7 +136,7 @@ validateUrlContent :: UrlContentFilter -> Text -> IO Bool
 validateUrlContent filter url = do
     let mgr = httpManager filter
         maxRedir = maxRedirects (filterConfig filter)
-    
+
     -- First check if URL is in blacklist
     safeUrl <- isUrlSafe filter url
     if not safeUrl
@@ -148,16 +148,14 @@ validateUrlContent filter url = do
                     { method = "HEAD"
                     , redirectCount = maxRedir
                     }
-            
+
             -- Make request and check response
-            result <- catchHttpException $ do
+            catchHttpException $ do
                 response <- httpNoBody request mgr
                 let status = statusCode (responseStatus response)
                 return $ status >= 200 && status < 400
-                
-            return $ result
 
 -- Catch HTTP exceptions and return False
 catchHttpException :: IO Bool -> IO Bool
-catchHttpException action = catch action $ \(e :: HttpException) -> 
+catchHttpException action = catch action $ \(e :: HttpException) ->
     return False

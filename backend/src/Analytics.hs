@@ -21,6 +21,7 @@ module Analytics
     ) where
 
 import Data.Aeson (FromJSON, ToJSON)
+import Data.Ord (Down(Down))
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
@@ -134,7 +135,7 @@ getUrlStats pool shortUrlId = do
 
         -- Most recent clicks (up to 100)
         recentClicksData = map toClickData $ take 100 $
-            reverse $ sortOn clickEventClickTime clickEntities
+            sortOn (Down . clickEventClickTime) clickEntities
 
     return $ ClickStats
         { totalClicks = total

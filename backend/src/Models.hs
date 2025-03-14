@@ -94,7 +94,7 @@ type ClientId = Text
 instance FromJSON ShortUrlResponse
 instance ToJSON ShortUrlResponse
 
-data ErrorResponse = ErrorResponse
+newtype ErrorResponse = ErrorResponse
     { errorMessage :: Text
     } deriving (Show, Eq, Generic)
 
