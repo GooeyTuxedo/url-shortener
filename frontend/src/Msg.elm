@@ -1,7 +1,6 @@
 module Msg exposing (Msg(..))
 
 import Browser
-import Browser.Dom exposing (Error)
 import Http
 import Time
 import Types exposing (ClipboardStatus, NotificationType, QrCodeDownloadStatus, ShortUrl)
@@ -31,3 +30,9 @@ type Msg
     | DownloadQrCode String String
     | QrCodeDownloaded QrCodeDownloadStatus
     | TimeReceived Time.Posix
+    -- New messages for client ID functionality
+    | ClientIdChanged String
+    | SaveClientId
+    | LoadClientUrls
+    | ClientUrlsLoaded (Result Http.Error (List ShortUrl))
+    | StoredClientIdReceived String

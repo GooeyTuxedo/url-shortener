@@ -7,7 +7,7 @@ import Element exposing (..)
 import Html exposing (Html)
 import Http
 import Msg exposing (Msg(..))
-import Ports exposing (clipboardStatus, qrCodeDownloaded, windowResize)
+import Ports exposing (clipboardStatus, qrCodeDownloaded, storeClientId, storedClientId, windowResize)
 import Process
 import Route
 import Task
@@ -15,6 +15,7 @@ import TestableNavigation
 import Time
 import Types exposing (..)
 import Url
+import View.ClientDashboard
 import View.Home
 import View.NotFound
 import View.UrlDetails
@@ -54,6 +55,8 @@ init flags url key =
             , isLoading = False
             , errorMessage = Nothing
             , navKey = TestableNavigation.fromReal key
+            , clientId = Nothing  -- Initialize with no client ID
+            , tempClientId = ""   -- Initialize empty input
             }
     in
     ( model
@@ -72,6 +75,9 @@ toPage route =
 
         Route.UrlDetails shortCode ->
             UrlDetailsPage shortCode
+            
+        Route.ClientDashboard ->
+            ClientDashboardPage
 
         Route.NotFound ->
             NotFoundPage
@@ -85,7 +91,15 @@ loadPage model page =
             Cmd.none
 
         UrlDetailsPage shortCode ->
-            Api.getShortUrl model.apiUrl shortCode UrlDetailsLoaded
+            Api.getShortUrl model.apiUrl shortCode model.clientId UrlDetailsLoaded
+            
+        ClientDashboardPage ->
+            -- Load client's URLs if clientId is set
+            case model.clientId of
+                Just clientId ->
+                    Api.getClientUrls model.apiUrl clientId ClientUrlsLoaded
+                Nothing ->
+                    Cmd.none
 
         NotFoundPage ->
             Cmd.none
@@ -181,7 +195,7 @@ update msg model =
                         }
                 in
                 ( { model | isLoading = True }
-                , Api.createShortUrl model.apiUrl request UrlCreated
+                , Api.createShortUrl model.apiUrl model.clientId request UrlCreated
                 )
 
         UrlCreated result ->
@@ -251,7 +265,7 @@ update msg model =
 
         LoadUrlDetails shortCode ->
             ( { model | isLoading = True }
-            , Api.getShortUrl model.apiUrl shortCode UrlDetailsLoaded
+            , Api.getShortUrl model.apiUrl shortCode model.clientId UrlDetailsLoaded
             )
 
         UrlDetailsLoaded result ->
@@ -322,6 +336,95 @@ update msg model =
 
         TimeReceived time ->
             ( model, Cmd.none )
+            
+        ClientIdChanged clientId ->
+            ( { model | tempClientId = clientId }, Cmd.none )
+            
+        SaveClientId ->
+            if String.isEmpty model.tempClientId then
+                ( { model
+                    | notification = Just { message = "Please enter a client ID", notificationType = Warning }
+                  }
+                , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
+                )
+            else
+                ( { model 
+                    | clientId = Just model.tempClientId
+                    , tempClientId = ""
+                    , notification = Just { message = "Client ID saved!", notificationType = Success }
+                  }
+                , Cmd.batch 
+                    [ storeClientId model.tempClientId
+                    , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
+                    ]
+                )
+                
+        LoadClientUrls ->
+            case model.clientId of
+                Just clientId ->
+                    ( { model | isLoading = True }
+                    , Api.getClientUrls model.apiUrl clientId ClientUrlsLoaded
+                    )
+                Nothing ->
+                    ( { model
+                        | notification = Just { message = "Please set a client ID first", notificationType = Warning }
+                      }
+                    , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
+                    )
+                    
+        ClientUrlsLoaded result ->
+            case result of
+                Ok urls ->
+                    ( { model 
+                        | urls = urls
+                        , isLoading = False 
+                        , notification = Just { message = String.fromInt (List.length urls) ++ " URLs loaded", notificationType = Success }
+                      }
+                    , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
+                    )
+                
+                Err error ->
+                    let
+                        errorMsg =
+                            case error of
+                                Http.BadStatus 400 ->
+                                    "Invalid request"
+
+                                Http.BadStatus 403 ->
+                                    "Access denied for this client ID"
+
+                                Http.BadStatus 404 ->
+                                    "No URLs found"
+
+                                _ ->
+                                    "Failed to load URLs. Please try again."
+                    in
+                    ( { model
+                        | isLoading = False
+                        , notification = Just { message = errorMsg, notificationType = Error }
+                      }
+                    , Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
+                    )
+        
+        StoredClientIdReceived clientId ->
+            if String.isEmpty clientId then
+                -- No stored client ID
+                ( model, Cmd.none )
+            else
+                -- We have a stored client ID, use it
+                ( { model 
+                    | clientId = Just clientId 
+                    , notification = Just { message = "Client ID loaded: " ++ clientId, notificationType = Info }
+                  }
+                , Cmd.batch
+                    [ Task.perform (\_ -> DismissNotification) (Process.sleep 3000)
+                    , case model.page of
+                        ClientDashboardPage -> 
+                            Api.getClientUrls model.apiUrl clientId ClientUrlsLoaded
+                        _ -> 
+                            Cmd.none
+                    ]
+                )
 
 
 view : Model -> Browser.Document Msg
@@ -339,6 +442,9 @@ pageTitle page =
 
         UrlDetailsPage shortCode ->
             "URL Details - " ++ shortCode
+            
+        ClientDashboardPage ->
+            "My URLs - Dashboard"
 
         NotFoundPage ->
             "Page Not Found"
@@ -353,6 +459,9 @@ viewBody model =
 
             UrlDetailsPage shortCode ->
                 View.UrlDetails.viewUrlDetails model shortCode
+                
+            ClientDashboardPage ->
+                View.ClientDashboard.viewClientDashboard model
 
             NotFoundPage ->
                 View.NotFound.viewNotFound model
@@ -364,4 +473,5 @@ subscriptions _ =
         [ windowResize WindowResized
         , clipboardStatus ClipboardResult
         , qrCodeDownloaded QrCodeDownloaded
+        , storedClientId StoredClientIdReceived
         ]

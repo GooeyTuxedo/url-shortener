@@ -8,6 +8,7 @@ import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, string)
 type Route
     = Home
     | UrlDetails String
+    | ClientDashboard
     | NotFound
 
 
@@ -17,6 +18,7 @@ routeParser =
         [ Parser.map Home Parser.top
         , Parser.map Home (s "home")
         , Parser.map UrlDetails (s "url" </> string)
+        , Parser.map ClientDashboard (s "my-urls")
         ]
 
 
@@ -36,6 +38,9 @@ toPage route =
         UrlDetails shortCode ->
             UrlDetailsPage shortCode
 
+        ClientDashboard ->
+            ClientDashboardPage
+
         NotFound ->
             NotFoundPage
 
@@ -53,6 +58,9 @@ toUrl route =
 
         UrlDetails shortCode ->
             "/url/" ++ shortCode
+
+        ClientDashboard ->
+            "/my-urls"
 
         NotFound ->
             "/not-found"

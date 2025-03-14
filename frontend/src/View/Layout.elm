@@ -84,6 +84,8 @@ viewHeader model =
             , if model.windowWidth > 768 then
                 row [ spacing 15 ]
                     [ navLink "Home" "/"
+                    , navLink "My URLs" "/my-urls"
+                    , viewClientIdBadge model
                     ]
 
               else
@@ -102,6 +104,32 @@ navLink label path =
         , onClick (NavigateTo path)
         ]
         (text label)
+
+
+viewClientIdBadge : Model -> Element Msg
+viewClientIdBadge model =
+    case model.clientId of
+        Just clientId ->
+            el
+                [ paddingXY 10 6
+                , Background.color colors.secondary
+                , Font.color (rgb 1 1 1)
+                , Border.rounded 4
+                , Font.size 14
+                ]
+                (text ("ID: " ++ clientId))
+        
+        Nothing ->
+            el
+                [ paddingXY 10 6
+                , Background.color colors.warning
+                , Font.color (rgb 0 0 0)
+                , Border.rounded 4
+                , Font.size 14
+                , pointer
+                , onClick (NavigateTo "/my-urls")
+                ]
+                (text "Set Client ID")
 
 
 viewFooter : Element Msg

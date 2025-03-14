@@ -18,6 +18,7 @@ type alias ShortUrl =
     , expiresAt : Maybe Time.Posix
     , clickCount : Int
     , qrCodeUrl : String
+    , clientId : String
     }
 
 
@@ -39,12 +40,15 @@ type alias Model =
     , isLoading : Bool
     , errorMessage : Maybe String
     , navKey : TestableNavigation.Key
+    , clientId : Maybe String
+    , tempClientId : String
     }
 
 
 type Page
     = HomePage
     | UrlDetailsPage String
+    | ClientDashboardPage
     | NotFoundPage
 
 

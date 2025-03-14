@@ -3,6 +3,8 @@ port module Ports exposing
     , copyToClipboard
     , downloadQrCode
     , qrCodeDownloaded
+    , storeClientId
+    , storedClientId
     , windowResize
     )
 
@@ -19,6 +21,9 @@ port copyToClipboard : String -> Cmd msg
 port downloadQrCode : { url : String, filename : String } -> Cmd msg
 
 
+port storeClientId : String -> Cmd msg  -- New port to store client ID
+
+
 
 -- Incoming ports (JS to Elm)
 
@@ -30,3 +35,6 @@ port clipboardStatus : (ClipboardStatus -> msg) -> Sub msg
 
 
 port qrCodeDownloaded : (QrCodeDownloadStatus -> msg) -> Sub msg
+
+
+port storedClientId : (String -> msg) -> Sub msg  -- New port to receive stored client ID

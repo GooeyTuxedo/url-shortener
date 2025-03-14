@@ -1,4 +1,4 @@
-module Api exposing (apiUrl, createShortUrl, encodeCreateShortUrlRequest, getShortUrl, getShortUrls)
+module Api exposing (apiUrl, createShortUrl, encodeCreateShortUrlRequest, getClientUrls, getShortUrl, getShortUrls)
 
 import Http
 import Json.Decode as Decode exposing (Decoder)
@@ -32,6 +32,7 @@ shortUrlDecoder =
         |> optional "expiresAt" (Decode.nullable iso8601Decoder) Nothing
         |> required "clickCount" Decode.int
         |> required "qrCodeUrl" Decode.string
+        |> optional "clientId" Decode.string "anonymous"
 
 
 iso8601Decoder : Decoder Time.Posix
@@ -86,10 +87,16 @@ encodeCreateShortUrlRequest request =
 -- API Requests
 
 
-createShortUrl : String -> CreateShortUrlRequest -> (Result Http.Error ShortUrl -> msg) -> Cmd msg
-createShortUrl baseApiUrl request toMsg =
+createShortUrl : String -> Maybe String -> CreateShortUrlRequest -> (Result Http.Error ShortUrl -> msg) -> Cmd msg
+createShortUrl baseApiUrl clientId request toMsg =
+    let
+        clientParam = 
+            case clientId of
+                Just id -> [ UrlBuilder.string "clientId" id ]
+                Nothing -> []
+    in
     Http.post
-        { url = apiUrl baseApiUrl "shorten" []
+        { url = apiUrl baseApiUrl "shorten" clientParam
         , body = Http.jsonBody (encodeCreateShortUrlRequest request)
         , expect = Http.expectJson toMsg shortUrlDecoder
         }
@@ -97,17 +104,32 @@ createShortUrl baseApiUrl request toMsg =
 
 getShortUrls : String -> (Result Http.Error (List ShortUrl) -> msg) -> Cmd msg
 getShortUrls baseApiUrl toMsg =
-    -- Note: This endpoint doesn't exist in the current backend
-    -- You'll need to add it or modify this to work with your actual API
+    -- Note: This endpoint might need to be modified based on your actual API
     Http.get
         { url = apiUrl baseApiUrl "urls" []
         , expect = Http.expectJson toMsg (Decode.list shortUrlDecoder)
         }
 
 
-getShortUrl : String -> String -> (Result Http.Error ShortUrl -> msg) -> Cmd msg
-getShortUrl baseApiUrl shortCode toMsg =
+getClientUrls : String -> String -> (Result Http.Error (List ShortUrl) -> msg) -> Cmd msg
+getClientUrls baseApiUrl clientId toMsg =
+    -- New function to get URLs for a specific client
     Http.get
-        { url = apiUrl baseApiUrl "urls" [ UrlBuilder.string "shortCode" shortCode ]
+        { url = apiUrl baseApiUrl "urls" [ UrlBuilder.string "clientId" clientId ]
+        , expect = Http.expectJson toMsg (Decode.list shortUrlDecoder)
+        }
+
+
+getShortUrl : String -> String -> Maybe String -> (Result Http.Error ShortUrl -> msg) -> Cmd msg
+getShortUrl baseApiUrl shortCode clientId toMsg =
+    -- Updated to include optional client ID
+    let
+        params =
+            case clientId of
+                Just id -> [ UrlBuilder.string "clientId" id ]
+                Nothing -> []
+    in
+    Http.get
+        { url = apiUrl baseApiUrl ("urls/" ++ shortCode) params
         , expect = Http.expectJson toMsg shortUrlDecoder
         }
