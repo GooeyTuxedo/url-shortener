@@ -22,7 +22,7 @@ import Data.Aeson (FromJSON, ToJSON)
 import Data.Pool (Pool)
 import Data.Text (Text)
 import Data.Time (UTCTime)
-import Database.Persist.Postgresql ((==.), (=.), ConnectionPool, Entity(..), SelectOpt(LimitTo), SqlBackend, update, selectList, runSqlPool)
+import Database.Persist.Postgresql ((==.), (=.), ConnectionPool, Entity(..), SelectOpt(LimitTo), Single, SqlBackend, update, selectList, rawSql, runSqlPool)
 import Database.Persist.TH
 import GHC.Generics (Generic)
 
@@ -41,32 +41,36 @@ ShortUrl
 
 migrateClientId :: Pool SqlBackend -> IO ()
 migrateClientId pool = do
-    -- Check if the column exists (simplified check - in practice, you may want to use a proper migration framework)
-    putStrLn "Checking if clientId migration is needed..."
+    putStrLn "Starting clientId migration..."
     
-    -- Try to run a query using the new column
-    result <- try $ runSqlPool 
-        (selectList [ShortUrlClientId ==. "test"] [LimitTo 1]) 
-        pool :: IO (Either SomeException [Entity ShortUrl])
+    -- 1. First add the column as nullable
+    result1 <- try $ runSqlPool 
+        (rawSql "ALTER TABLE \"short_url\" ADD COLUMN \"client_id\" VARCHAR" []) 
+        pool :: IO (Either SomeException [Single Int])
         
-    case result of
-        -- If the query succeeds, the column exists
-        Right _ -> putStrLn "ClientId column already exists."
+    case result1 of
+        Left e -> putStrLn $ "Error adding client_id column (might already exist): " ++ show e
+        Right _ -> putStrLn "Added client_id column successfully"
+    
+    -- 2. Update existing records to set a default value
+    result2 <- try $ runSqlPool 
+        (rawSql "UPDATE \"short_url\" SET client_id = 'migrated' WHERE client_id IS NULL" []) 
+        pool :: IO (Either SomeException [Single Int])
         
-        -- If we get an error, assume the column doesn't exist and we need to migrate
-        Left _ -> do
-            putStrLn "Migrating existing records to add clientId..."
-            
-            -- Get all existing records
-            records <- runSqlPool (selectList [] []) pool
-            
-            -- For each record, add a default client ID
-            forM_ records $ \(Entity recordId _) -> do
-                runSqlPool 
-                    (update recordId [ShortUrlClientId =. "migrated"])
-                    pool
-                    
-            putStrLn "Migration completed successfully."
+    case result2 of
+        Left e -> putStrLn $ "Error updating existing records: " ++ show e
+        Right _ -> putStrLn "Updated existing records with default client_id"
+    
+    -- 3. Now add the NOT NULL constraint
+    result3 <- try $ runSqlPool 
+        (rawSql "ALTER TABLE \"short_url\" ALTER COLUMN \"client_id\" SET NOT NULL" []) 
+        pool :: IO (Either SomeException [Single Int])
+        
+    case result3 of
+        Left e -> putStrLn $ "Error adding NOT NULL constraint: " ++ show e
+        Right _ -> putStrLn "Added NOT NULL constraint successfully"
+    
+    putStrLn "ClientId migration completed"
 
 -- API request/response types
 data CreateShortUrlRequest = CreateShortUrlRequest
